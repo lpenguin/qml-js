@@ -1,0 +1,11 @@
+.Item,.Rectangle,.Text {
+    position: absolute;
+    /*width: auto;*/
+}
+#root {
+
+}
+
+#control {
+    margin-left: 800px;
+}
