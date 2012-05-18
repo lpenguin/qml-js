@@ -1,4 +1,4 @@
-
+(function() {
   atom.dom(function() {
     var root;
     root = atom.dom('div').first;
@@ -36,3 +36,4 @@
       });
     });
   });
+}).call(this);

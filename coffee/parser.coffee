@@ -163,8 +163,8 @@ class QMLView
   propFunctions:
     width:              (domobj, v)-> domobj.css width: v
     height:             (domobj, v)-> domobj.css height: v
-    x:                  (domobj, v)-> domobj.css left: v
-    y:                  (domobj, v)-> domobj.css top: v
+    x:                  (domobj, v, el)-> domobj.css left: v if not el['anchor.left'] and not el['anchor.right']
+    y:                  (domobj, v, el)-> domobj.css top: v if not el['anchor.top'] and not el['anchor.bottom']
     color:              (domobj, v, el)->
       if el.type == 'Text'
         domobj.css 'color': v
@@ -188,19 +188,17 @@ class QMLView
         height: m.height+'px'
       return domobj
     'anchors.right': (domobj, v, el)->
-      m = qmlView.getCSSMetrics domobj
-      pm = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
-      domobj.css left: (pm.width - m.width )+'px'
+      pos = v.value()
+      domobj.css left: (pos-el.width)+'px'#(pm.width - m.width )+'px'
     'anchors.left': (domobj, v, el)->
-      m = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
-      domobj.css left: (m.left)+'px'
+      pos = v.value()
+      domobj.css left: (pos)+'px'#(pm.width - m.width )+'px'
     'anchors.top': (domobj, v, el)->
-      m = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
-      domobj.css top: (m.top)+'px'
+      pos = v.value()
+      domobj.css top: (pos)+'px'#(pm.width - m.width )+'px'
     'anchors.bottom': (domobj, v, el)->
-      m = qmlView.getCSSMetrics domobj
-      pm = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
-      domobj.css top: (pm.height - m.height)+'px'
+      pos = v.value()
+      domobj.css top: (pos-el.height)+'px'#(pm.width - m.width )+'px'
 
 qmlEngine = new QMLEngine()
 qmlView = new QMLView()
@@ -210,6 +208,27 @@ exportNames = (names...) ->
   for cl in names
     Root[cl] = eval '('+cl+')'
   return null
+
+
+AnchorTypes =
+  left: 0
+  right: 1
+  top: 2
+  bottom: 3
+
+class AnchorLine
+  type: AnchorTypes.left
+  item: null
+  constructor: (type, item)->
+    @type = type
+    @item = item
+  value: ()->
+    switch @type
+      when AnchorTypes.left then return @item.x
+      when AnchorTypes.right then return @item.x+@item.width
+      when AnchorTypes.top then return @item.y
+      when AnchorTypes.bottom then return @item.y+@item.height
+    return null
 
 class Item
   parent: null
@@ -222,9 +241,9 @@ class Item
   height: 0
   'anchors.centerIn': null
   'anchors.fill': null
-  #'anchors.left': null
+  'anchors.left': null
   'anchors.right': null
-  #'anchors.top': null
+  'anchors.top': null
   'anchors.bottom': null
   'border.color': '"black"'
   'border.width': 0
@@ -232,23 +251,18 @@ class Item
   dynamic:
     'left':
       get: ()->
-        return @x
-#      set: (v)->
-#        @x = v
-
+        return new AnchorLine AnchorTypes.left, this
     'right':
       get: ()->
-        return @x unless @width
-        return @x+@width
-      deps: ['width', 'x']
+        new AnchorLine AnchorTypes.right, this
+      deps: ['width']
     'top':
       get: ()->
-        return @y
+        new AnchorLine AnchorTypes.top, this
     'bottom':
       get: ()->
-        return @y unless @height
-        return @y+@height
-      deps: ['height', 'y']
+        new AnchorLine AnchorTypes.bottom, this
+      deps: ['height']
 
 
 
