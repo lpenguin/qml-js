@@ -15,7 +15,8 @@ atom.dom () ->
       type: 'plain'
       method: 'get'
       onLoad: (data)->
-        rootElem = qmlEngine.parseQML(data)
+        data = qmlParser.parse(data)
+        rootElem = qmlEngine.createObjects(data)
         qmlEngine.exportAll()
         qmlView.createElement rootElem, root
 

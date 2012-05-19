@@ -1,3 +1,71 @@
+#TODO: x,y position not changes if anchors.*
+#TODO: move global elcount in class QMLParser
+elcount=0
+class QMLParser
+  elcount: 0
+  replaces: [
+    #  re: /\;/g
+    #  repl: "\n"
+    #,
+      re: /on(\w+)\s*:\s*\{/ #event handler (multiline)
+      repl: 'on$1: function(){'
+    ,
+      re: /on(\w+)\s*:\s*(\w[^\{]+)/ #event handler (oneline)
+      repl: "on$1: function()\{$2\}"
+    ,
+      re:  /(\w+)\s*{/g #item declaration
+      repl:  (tmpl, found) -> 'elem'+(elcount++)+': { "type": "'+found+'",'
+    ,
+      re: /(})/ #close bracket
+      repl: '$1,'
+    ,
+      re: /([\w\.]+)\:\s*(\d+)$/ #number property (width: 100)
+      repl: '"$1": $2,'
+    ,
+      re: /([\w\.]+)\s*\:\s*\"([^\"]+)"/ #string property eg. text: "hello"
+      repl:'\"$1\": \"\\\"$2\\\"\",'
+      #repl:'$1 $2 '
+    ,
+      re: /([\w\.]+)\s*\:\s*([^\"\']+)$/ #ref properties ( anchors.fill: parent)
+      repl: '"$1": "$2",'
+    ,
+      re: /([\w\.]+)\s*\:\s*\'([^\']+)'/ #string property eg. text: 'hello'
+      repl: '\"$1\": \"\\\"$2\\\"\",'
+    ,
+
+
+      re: /import QtQuick [\d\.]+/ #imports eg. import QtQuick 1.0
+      repl: ''
+    #,
+    #  re: /,$/ #end of line
+    #  repl: ''
+  ]
+
+  parseQML: (qmlstr) ->
+    @elcount = 0
+    lines = qmlstr.split /[\n\;]/
+    strs = []
+
+    for line in lines
+      replaced = false
+      for replace in @replaces
+        if line.match(replace.re)
+          strs.push line.replace( replace.re, replace.repl )
+          replaced = true
+          break
+      if not replaced
+        strs.push  line
+
+    str = strs.join('\n').replace( /,$/, '' )
+    console.log str
+    obj = eval "({"+str+"})"
+    return obj['elem0']
+
+  parse: (str)->
+    return @parseQML str
+
+
+
 class QMLEngine
   items: {}
   count: 0
@@ -8,6 +76,13 @@ class QMLEngine
     `
     return r
   depencities: {}
+
+  exportAll: ()->
+    for name, item of @items
+      Root[name] = item
+  export: (item)->
+    Root[item.id] = item
+
   defineDependency: (id, key, depid, depkey)->
 
     obj = @findItem id
@@ -51,57 +126,21 @@ class QMLEngine
     return @items[id]
   registerItem: (obj)->
     @items[obj.id] = obj
-
-  readQML: (qmlstr) ->
-    elcount = 0
-    openStructRe = /(\w+)\s*{/g
-    openStructReplace = (tmpl, found) -> 'elem'+(elcount++)+': { "type": "'+found+'",'
-
-    closeStructRe = /(})/g
-    closeStructReplace = '$1,'
-
-    propStuctRe = /([\w\.]+)\:\s*([^\"\'\n]+)\n/g
-    propStuctReplace = '"$1": "$2",\n'
-
-    propStuctDRe = /([\w\.]+)\:\s*(\d+)/g
-    propStuctDReplace = '"$1": $2,'
-
-    propStuctSRe = /([\w\.]+)\:\s*\"([^\"]+)\"/g
-    propStuctSReplace = '\"$1\": \"\\\"$2\\\"\",'
-
-    propStuctSRe2 = /([\w\.]+)\:\s*\'([^\']+)\'/g
-    propStuctSReplace2 = '\"$1\": \"\\\"$2\\\"\",'
-
-    qmlstr= qmlstr.replace openStructRe, openStructReplace
-    qmlstr = qmlstr.replace closeStructRe, closeStructReplace
-    qmlstr = qmlstr.replace propStuctRe,   propStuctReplace
-    qmlstr = qmlstr.replace propStuctSRe,  propStuctSReplace
-    qmlstr = qmlstr.replace propStuctSRe2,  propStuctSReplace2
-
-
-    qmlstr = qmlstr.replace(/,$/,'')
-    obj = eval "({"+qmlstr+"})"
-    return obj['elem0']
-  parseQML: (obj, parent) ->
-    if typeof obj == 'string'
-      obj = @readQML obj
+  createObjects: (obj, parent) ->
     parent = null if not parent?
-
     res = null
     switch obj.type
       when "Rectangle" then res =  new Rectangle parent, obj
       when "Text" then res = new Text parent, obj
+      when "MouseArea" then res = new MouseArea parent, obj
     re = /elem\d+/
     return unless res?
 
     for own key, child of obj
       continue unless typeof key == 'string'
       if re.test key
-        res.childs.push @parseQML child, res
+        res.childs.push @createObjects child, res
     return res
-  exportAll: ()->
-    for name, item of @items
-      Root[name] = item
 
 class QMLView
   domlinks: null
@@ -112,6 +151,7 @@ class QMLView
     switch el.type
       when 'Rectangle' then res = @createRectangle el, parent
       when 'Text' then res = @createText el, parent
+      when 'MouseArea' then res = @createMouseArea el, parent
     return null if not res?
 
     res.attr id: "qml-#{el.id}"
@@ -143,6 +183,13 @@ class QMLView
     #domobj = parent.create 'div'
     domobj = atom.dom.create('span').appendTo( parent );
     domobj.addClass 'Text'
+    return domobj
+  createMouseArea: (el, parent)->
+    #domobj = parent.create 'div'
+    domobj = atom.dom.create('div').appendTo( parent );
+    domobj.addClass 'MouseArea'
+    domobj.bind click: (e)->
+      el.onClicked()
     return domobj
   #getCSSMetric: (domobj, cssname)->
   #  value = domobj.first[ cssname ]
@@ -181,28 +228,34 @@ class QMLView
         left: ( parentm.width/ 2 - m.width/ 2)+"px"
         top: (parentm.height/2 - m.height/2)+"px"
       return domobj
-    'anchors.fill': (domobj, v, el)->
-      m = qmlView.getCSSMetrics qmlView.domlinks[v.id]
-      domobj.css
-        width: m.width+'px'
-        height: m.height+'px'
-      return domobj
-    'anchors.right': (domobj, v, el)->
-      pos = v.value()
-      domobj.css left: (pos-el.width)+'px'#(pm.width - m.width )+'px'
-    'anchors.left': (domobj, v, el)->
-      pos = v.value()
-      domobj.css left: (pos)+'px'#(pm.width - m.width )+'px'
-    'anchors.top': (domobj, v, el)->
-      pos = v.value()
-      domobj.css top: (pos)+'px'#(pm.width - m.width )+'px'
-    'anchors.bottom': (domobj, v, el)->
-      pos = v.value()
-      domobj.css top: (pos-el.height)+'px'#(pm.width - m.width )+'px'
+#    'anchors.fill': (domobj, v, el)->
+#      #TODO: can siblings fill
+#      throw Error "Cannot anchor to an item that isn't a parent or sibling" unless el.parent == v or el.parent == v.parent
+#      #m = qmlView.getCSSMetrics qmlView.domlinks[v.id]
+#      domobj.css
+#        width: v.width+'px'
+#        height: v.height+'px'
+#      return domobj
+#    'anchors.right': (domobj, v, el)->
+#      throw Error "Cannot anchor to an item that isn't a parent or sibling"  unless v.isValid el
+#      pos = v.value()
+#      domobj.css left: (pos-el.width)+'px'#(pm.width - m.width )+'px'
+#    'anchors.left': (domobj, v, el)->
+#      throw Error "Cannot anchor to an item that isn't a parent or sibling"  unless v.isValid el
+#      pos = v.value()
+#      domobj.css left: (pos)+'px'#(pm.width - m.width )+'px'
+#    'anchors.top': (domobj, v, el)->
+#      throw Error "Cannot anchor to an item that isn't a parent or sibling"  unless v.isValid el
+#      pos = v.value()
+#      domobj.css top: (pos)+'px'#(pm.width - m.width )+'px'
+#    'anchors.bottom': (domobj, v, el)->
+#      throw Error "Cannot anchor to an item that isn't a parent or sibling"  unless v.isValid el
+#      pos = v.value()
+#      domobj.css top: (pos-el.height)+'px'#(pm.width - m.width )+'px'
 
 qmlEngine = new QMLEngine()
 qmlView = new QMLView()
-
+qmlParser  = new QMLParser()
 
 exportNames = (names...) ->
   for cl in names
@@ -222,23 +275,50 @@ class AnchorLine
   constructor: (type, item)->
     @type = type
     @item = item
-  value: ()->
+  value: (anchoreditem)->
     switch @type
-      when AnchorTypes.left then return @item.x
-      when AnchorTypes.right then return @item.x+@item.width
-      when AnchorTypes.top then return @item.y
-      when AnchorTypes.bottom then return @item.y+@item.height
-    return null
+      when AnchorTypes.left
+        if @item.isParent anchoreditem
+          return 0
+        if @item.isSibling anchoreditem
+          return @item.x
+        throw Error "Cannot anchor to an item that isn't a parent or sibling"
+      when AnchorTypes.right
+        if @item.isParent anchoreditem
+          return @item.width
+        if @item.isSibling anchoreditem
+          return @item.x + @item.width
+        throw Error "Cannot anchor to an item that isn't a parent or sibling"
+
+      when AnchorTypes.top
+        if @item.isParent anchoreditem
+          return 0
+        if @item.isSibling anchoreditem
+          return  @item.height
+        throw Error "Cannot anchor to an item that isn't a parent or sibling"
+
+      when AnchorTypes.bottom
+        if @item.isParent anchoreditem
+          return @item.height
+        if @item.isSibling anchoreditem
+          return @item.y + @item.height
+        throw Error "Cannot anchor to an item that isn't a parent or sibling"
+
+     throw Error "Undefined anchor type"
+  isValid: (item)->
+    return ( item.parent == @item or
+       item.parent == @item.parent )
 
 class Item
   parent: null
   childs: null
   id: null
   type: 'Item'
-  x: null
-  y: null
+  x: 0
+  y: 0
   width: 0
   height: 0
+  color: "''"
   'anchors.centerIn': null
   'anchors.fill': null
   'anchors.left': null
@@ -248,6 +328,25 @@ class Item
   'border.color': '"black"'
   'border.width': 0
 
+  anchors:
+    'anchors.left': (v)->
+      return unless v?
+      @x = v.value(this)
+    'anchors.right': (v)->
+      return unless v?
+      @x = v.value(this) - @width
+    'anchors.top': (v)->
+      return unless v?
+      @y = v.value(this)
+    'anchors.bottom': (v)->
+      return unless v?
+      @y = v.value(this) - @height
+    'anchors.fill': (v)->
+      return unless v?
+      @y = 0
+      @x = 0
+      @width = v.width
+      @height = v.height
   dynamic:
     'left':
       get: ()->
@@ -264,7 +363,15 @@ class Item
         new AnchorLine AnchorTypes.bottom, this
       deps: ['height']
 
-
+  isSibling: (item)->
+    return @parent == item.parent
+  isParent: (item)->
+    return this == item.parent
+  appendSetter: (prop, setter)->
+    oldsetter = this.__lookupSetter__ prop
+    this.__defineSetter__ prop, (v)->
+      setter.call this, v
+      oldsetter.call this, v
 
   defineGetter: (propName) ->
     @.__defineGetter__ propName, ()-> qmlEngine.evaluate this["_"+propName], this
@@ -291,7 +398,7 @@ class Item
         @parent = qmlEngine.findItem parent
     @id = options.id or qmlEngine.getNewId()
     qmlEngine.registerItem(this)
-
+    qmlEngine.export(this)
     @defineDynamicProperties()
     @readOptions(options)
 
@@ -299,6 +406,9 @@ class Item
     console.log ' with id: '+@id
     console.log ' with parent: '+@parent.id if @parent
     @defineGettersSetters()
+    for prop, setter of @anchors
+      @appendSetter prop, setter
+      this[prop] = this[prop]
 
   defineDynamicSetter: (thisid, propname)->
     @__defineSetter__ propname, (v)->
@@ -376,7 +486,7 @@ class Item
     return res
 
 class Shape extends Item
-  color: null
+  #color: null
   type: 'Shape'
 
 class Text extends Shape
@@ -391,7 +501,9 @@ class Rectangle extends Shape
   radius: null
   type: 'Rectangle'
 
-
+class MouseArea extends Item
+  onClicked: null
+  type: 'MouseArea'
 
 
 #item = qmlEngine.parseQML str
@@ -401,5 +513,5 @@ class Rectangle extends Shape
 #  atom.dom ()->
 Root = window
 window.Root = Root
-exportNames 'Item', 'Shape', 'Text', 'Rectangle', 'Circle', 'QMLEngine', 'qmlView', 'qmlEngine'
+exportNames 'Item', 'Shape', 'Text', 'Rectangle', 'Circle', 'QMLEngine', 'qmlView', 'qmlEngine', 'qmlParser'
 #console.log convertQML str

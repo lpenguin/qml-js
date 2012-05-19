@@ -35,18 +35,12 @@ Rectangle {
          height: 100
          border.width: 1
          color: "green"
-         //anchors.right: parent.right
+         anchors.right: parent.right
          x: 100
-         //anchors.top: r1.bottom
+         anchors.top: r1.bottom
               MouseArea {
                  anchors.fill: parent
-                 onClicked: {
-                    r2.x+=20
-                    if(canvas.color == "blue")
-                        canvas.color = "'green'"
-                    else
-                        canvas.color = "'blue'"
-                 }
+                 onClicked: console.log
               }
      }
      Text {

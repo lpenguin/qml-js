@@ -1,5 +1,5 @@
 (function() {
-  var AnchorLine, AnchorTypes, Circle, Item, QMLEngine, QMLView, Rectangle, Root, Shape, Text, exportNames, qmlEngine, qmlView;
+  var AnchorLine, AnchorTypes, Circle, Item, MouseArea, QMLEngine, QMLParser, QMLView, Rectangle, Root, Shape, Text, elcount, exportNames, qmlEngine, qmlParser, qmlView;
   var __hasProp = Object.prototype.hasOwnProperty, __slice = Array.prototype.slice, __indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
@@ -13,6 +13,73 @@
     child.__super__ = parent.prototype;
     return child;
   };
+  elcount = 0;
+  QMLParser = (function() {
+    function QMLParser() {}
+    QMLParser.prototype.elcount = 0;
+    QMLParser.prototype.replaces = [
+      {
+        re: /on(\w+)\s*:\s*\{/,
+        repl: 'on$1: function(){'
+      }, {
+        re: /on(\w+)\s*:\s*(\w[^\{]+)/,
+        repl: "on$1: function()\{$2\}"
+      }, {
+        re: /(\w+)\s*{/g,
+        repl: function(tmpl, found) {
+          return 'elem' + (elcount++) + ': { "type": "' + found + '",';
+        }
+      }, {
+        re: /(})/,
+        repl: '$1,'
+      }, {
+        re: /([\w\.]+)\:\s*(\d+)$/,
+        repl: '"$1": $2,'
+      }, {
+        re: /([\w\.]+)\s*\:\s*\"([^\"]+)"/,
+        repl: '\"$1\": \"\\\"$2\\\"\",'
+      }, {
+        re: /([\w\.]+)\s*\:\s*([^\"\']+)$/,
+        repl: '"$1": "$2",'
+      }, {
+        re: /([\w\.]+)\s*\:\s*\'([^\']+)'/,
+        repl: '\"$1\": \"\\\"$2\\\"\",'
+      }, {
+        re: /import QtQuick [\d\.]+/,
+        repl: ''
+      }
+    ];
+    QMLParser.prototype.parseQML = function(qmlstr) {
+      var line, lines, obj, replace, replaced, str, strs, _i, _j, _len, _len2, _ref;
+      this.elcount = 0;
+      lines = qmlstr.split(/[\n\;]/);
+      strs = [];
+      for (_i = 0, _len = lines.length; _i < _len; _i++) {
+        line = lines[_i];
+        replaced = false;
+        _ref = this.replaces;
+        for (_j = 0, _len2 = _ref.length; _j < _len2; _j++) {
+          replace = _ref[_j];
+          if (line.match(replace.re)) {
+            strs.push(line.replace(replace.re, replace.repl));
+            replaced = true;
+            break;
+          }
+        }
+        if (!replaced) {
+          strs.push(line);
+        }
+      }
+      str = strs.join('\n').replace(/,$/, '');
+      console.log(str);
+      obj = eval("({" + str + "})");
+      return obj['elem0'];
+    };
+    QMLParser.prototype.parse = function(str) {
+      return this.parseQML(str);
+    };
+    return QMLParser;
+  })();
   QMLEngine = (function() {
     function QMLEngine() {}
     QMLEngine.prototype.items = {};
@@ -24,6 +91,19 @@
     ;      return r;
     };
     QMLEngine.prototype.depencities = {};
+    QMLEngine.prototype.exportAll = function() {
+      var item, name, _ref, _results;
+      _ref = this.items;
+      _results = [];
+      for (name in _ref) {
+        item = _ref[name];
+        _results.push(Root[name] = item);
+      }
+      return _results;
+    };
+    QMLEngine.prototype["export"] = function(item) {
+      return Root[item.id] = item;
+    };
     QMLEngine.prototype.defineDependency = function(id, key, depid, depkey) {
       var dependencyName, obj;
       obj = this.findItem(id);
@@ -98,37 +178,8 @@
     QMLEngine.prototype.registerItem = function(obj) {
       return this.items[obj.id] = obj;
     };
-    QMLEngine.prototype.readQML = function(qmlstr) {
-      var closeStructRe, closeStructReplace, elcount, obj, openStructRe, openStructReplace, propStuctDRe, propStuctDReplace, propStuctRe, propStuctReplace, propStuctSRe, propStuctSRe2, propStuctSReplace, propStuctSReplace2;
-      elcount = 0;
-      openStructRe = /(\w+)\s*{/g;
-      openStructReplace = function(tmpl, found) {
-        return 'elem' + (elcount++) + ': { "type": "' + found + '",';
-      };
-      closeStructRe = /(})/g;
-      closeStructReplace = '$1,';
-      propStuctRe = /([\w\.]+)\:\s*([^\"\'\n]+)\n/g;
-      propStuctReplace = '"$1": "$2",\n';
-      propStuctDRe = /([\w\.]+)\:\s*(\d+)/g;
-      propStuctDReplace = '"$1": $2,';
-      propStuctSRe = /([\w\.]+)\:\s*\"([^\"]+)\"/g;
-      propStuctSReplace = '\"$1\": \"\\\"$2\\\"\",';
-      propStuctSRe2 = /([\w\.]+)\:\s*\'([^\']+)\'/g;
-      propStuctSReplace2 = '\"$1\": \"\\\"$2\\\"\",';
-      qmlstr = qmlstr.replace(openStructRe, openStructReplace);
-      qmlstr = qmlstr.replace(closeStructRe, closeStructReplace);
-      qmlstr = qmlstr.replace(propStuctRe, propStuctReplace);
-      qmlstr = qmlstr.replace(propStuctSRe, propStuctSReplace);
-      qmlstr = qmlstr.replace(propStuctSRe2, propStuctSReplace2);
-      qmlstr = qmlstr.replace(/,$/, '');
-      obj = eval("({" + qmlstr + "})");
-      return obj['elem0'];
-    };
-    QMLEngine.prototype.parseQML = function(obj, parent) {
+    QMLEngine.prototype.createObjects = function(obj, parent) {
       var child, key, re, res;
-      if (typeof obj === 'string') {
-        obj = this.readQML(obj);
-      }
       if (!(parent != null)) {
         parent = null;
       }
@@ -139,6 +190,9 @@
           break;
         case "Text":
           res = new Text(parent, obj);
+          break;
+        case "MouseArea":
+          res = new MouseArea(parent, obj);
       }
       re = /elem\d+/;
       if (res == null) {
@@ -151,20 +205,10 @@
           continue;
         }
         if (re.test(key)) {
-          res.childs.push(this.parseQML(child, res));
+          res.childs.push(this.createObjects(child, res));
         }
       }
       return res;
-    };
-    QMLEngine.prototype.exportAll = function() {
-      var item, name, _ref, _results;
-      _ref = this.items;
-      _results = [];
-      for (name in _ref) {
-        item = _ref[name];
-        _results.push(Root[name] = item);
-      }
-      return _results;
     };
     return QMLEngine;
   })();
@@ -182,6 +226,9 @@
           break;
         case 'Text':
           res = this.createText(el, parent);
+          break;
+        case 'MouseArea':
+          res = this.createMouseArea(el, parent);
       }
       if (!(res != null)) {
         return null;
@@ -230,6 +277,17 @@
       var domobj;
       domobj = atom.dom.create('span').appendTo(parent);
       domobj.addClass('Text');
+      return domobj;
+    };
+    QMLView.prototype.createMouseArea = function(el, parent) {
+      var domobj;
+      domobj = atom.dom.create('div').appendTo(parent);
+      domobj.addClass('MouseArea');
+      domobj.bind({
+        click: function(e) {
+          return el.onClicked();
+        }
+      });
       return domobj;
     };
     QMLView.prototype.getCSSMetrics = function(domobj) {
@@ -305,49 +363,13 @@
           top: (parentm.height / 2 - m.height / 2) + "px"
         });
         return domobj;
-      },
-      'anchors.fill': function(domobj, v, el) {
-        var m;
-        m = qmlView.getCSSMetrics(qmlView.domlinks[v.id]);
-        domobj.css({
-          width: m.width + 'px',
-          height: m.height + 'px'
-        });
-        return domobj;
-      },
-      'anchors.right': function(domobj, v, el) {
-        var pos;
-        pos = v.value();
-        return domobj.css({
-          left: (pos - el.width) + 'px'
-        });
-      },
-      'anchors.left': function(domobj, v, el) {
-        var pos;
-        pos = v.value();
-        return domobj.css({
-          left: pos + 'px'
-        });
-      },
-      'anchors.top': function(domobj, v, el) {
-        var pos;
-        pos = v.value();
-        return domobj.css({
-          top: pos + 'px'
-        });
-      },
-      'anchors.bottom': function(domobj, v, el) {
-        var pos;
-        pos = v.value();
-        return domobj.css({
-          top: (pos - el.height) + 'px'
-        });
       }
     };
     return QMLView;
   })();
   qmlEngine = new QMLEngine();
   qmlView = new QMLView();
+  qmlParser = new QMLParser();
   exportNames = function() {
     var cl, names, _i, _len;
     names = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -361,7 +383,7 @@
     left: 0,
     right: 1,
     top: 2,
-    bottom: 4
+    bottom: 3
   };
   AnchorLine = (function() {
     AnchorLine.prototype.type = AnchorTypes.left;
@@ -370,30 +392,63 @@
       this.type = type;
       this.item = item;
     }
-    AnchorLine.prototype.value = function() {
+    AnchorLine.prototype.value = function(anchoreditem) {
       switch (this.type) {
         case AnchorTypes.left:
-          return this.item.x;
+          if (this.item.isParent(anchoreditem)) {
+            return 0;
+          }
+          if (this.item.isSibling(anchoreditem)) {
+            return this.item.x;
+          }
+          throw Error("Cannot anchor to an item that isn't a parent or sibling");
+          break;
         case AnchorTypes.right:
-          return this.item.x + this.item.width;
+          if (this.item.isParent(anchoreditem)) {
+            return this.item.width;
+          }
+          if (this.item.isSibling(anchoreditem)) {
+            return this.item.x + this.item.width;
+          }
+          throw Error("Cannot anchor to an item that isn't a parent or sibling");
+          break;
         case AnchorTypes.top:
-          return this.item.y;
+          if (this.item.isParent(anchoreditem)) {
+            return 0;
+          }
+          if (this.item.isSibling(anchoreditem)) {
+            return this.item.height;
+          }
+          throw Error("Cannot anchor to an item that isn't a parent or sibling");
+          break;
         case AnchorTypes.bottom:
-          return this.item.y + this.item.height;
+          if (this.item.isParent(anchoreditem)) {
+            return this.item.height;
+          }
+          if (this.item.isSibling(anchoreditem)) {
+            return this.item.y + this.item.height;
+          }
+          throw Error("Cannot anchor to an item that isn't a parent or sibling");
       }
-      return null;
+      throw Error("Undefined anchor type");
     };
     return AnchorLine;
   })();
+  ({
+    isValid: function(item) {
+      return item.parent === this.item || item.parent === this.item.parent;
+    }
+  });
   Item = (function() {
     Item.prototype.parent = null;
     Item.prototype.childs = null;
     Item.prototype.id = null;
     Item.prototype.type = 'Item';
-    Item.prototype.x = null;
-    Item.prototype.y = null;
+    Item.prototype.x = 0;
+    Item.prototype.y = 0;
     Item.prototype.width = 0;
     Item.prototype.height = 0;
+    Item.prototype.color = "''";
     Item.prototype['anchors.centerIn'] = null;
     Item.prototype['anchors.fill'] = null;
     Item.prototype['anchors.left'] = null;
@@ -402,6 +457,41 @@
     Item.prototype['anchors.bottom'] = null;
     Item.prototype['border.color'] = '"black"';
     Item.prototype['border.width'] = 0;
+    Item.prototype.anchors = {
+      'anchors.left': function(v) {
+        if (v == null) {
+          return;
+        }
+        return this.x = v.value(this);
+      },
+      'anchors.right': function(v) {
+        if (v == null) {
+          return;
+        }
+        return this.x = v.value(this) - this.width;
+      },
+      'anchors.top': function(v) {
+        if (v == null) {
+          return;
+        }
+        return this.y = v.value(this);
+      },
+      'anchors.bottom': function(v) {
+        if (v == null) {
+          return;
+        }
+        return this.y = v.value(this) - this.height;
+      },
+      'anchors.fill': function(v) {
+        if (v == null) {
+          return;
+        }
+        this.y = 0;
+        this.x = 0;
+        this.width = v.width;
+        return this.height = v.height;
+      }
+    };
     Item.prototype.dynamic = {
       'left': {
         get: function() {
@@ -422,8 +512,23 @@
       'bottom': {
         get: function() {
           return new AnchorLine(AnchorTypes.bottom, this);
-        }
+        },
+        deps: ['height']
       }
+    };
+    Item.prototype.isSibling = function(item) {
+      return this.parent === item.parent;
+    };
+    Item.prototype.isParent = function(item) {
+      return this === item.parent;
+    };
+    Item.prototype.appendSetter = function(prop, setter) {
+      var oldsetter;
+      oldsetter = this.__lookupSetter__(prop);
+      return this.__defineSetter__(prop, function(v) {
+        setter.call(this, v);
+        return oldsetter.call(this, v);
+      });
     };
     Item.prototype.defineGetter = function(propName) {
       return this.__defineGetter__(propName, function() {
@@ -450,6 +555,7 @@
       return _results;
     };
     function Item(parent, options) {
+      var prop, setter, _ref;
       this.childs = [];
       if (!(options != null)) {
         this.parent = null;
@@ -463,6 +569,7 @@
       }
       this.id = options.id || qmlEngine.getNewId();
       qmlEngine.registerItem(this);
+      qmlEngine["export"](this);
       this.defineDynamicProperties();
       this.readOptions(options);
       console.log('created: ' + this.type);
@@ -471,6 +578,12 @@
         console.log(' with parent: ' + this.parent.id);
       }
       this.defineGettersSetters();
+      _ref = this.anchors;
+      for (prop in _ref) {
+        setter = _ref[prop];
+        this.appendSetter(prop, setter);
+        this[prop] = this[prop];
+      }
     }
     Item.prototype.defineDynamicSetter = function(thisid, propname) {
       return this.__defineSetter__(propname, function(v) {
@@ -606,7 +719,6 @@
     function Shape() {
       Shape.__super__.constructor.apply(this, arguments);
     }
-    Shape.prototype.color = null;
     Shape.prototype.type = 'Shape';
     return Shape;
   })();
@@ -637,7 +749,16 @@
     Rectangle.prototype.type = 'Rectangle';
     return Rectangle;
   })();
+  MouseArea = (function() {
+    __extends(MouseArea, Item);
+    function MouseArea() {
+      MouseArea.__super__.constructor.apply(this, arguments);
+    }
+    MouseArea.prototype.onClicked = null;
+    MouseArea.prototype.type = 'MouseArea';
+    return MouseArea;
+  })();
   Root = window;
   window.Root = Root;
-  exportNames('Item', 'Shape', 'Text', 'Rectangle', 'Circle', 'QMLEngine', 'qmlView', 'qmlEngine');
+  exportNames('Item', 'Shape', 'Text', 'Rectangle', 'Circle', 'QMLEngine', 'qmlView', 'qmlEngine', 'qmlParser');
 }).call(this);

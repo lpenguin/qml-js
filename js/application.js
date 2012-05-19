@@ -29,7 +29,8 @@
         method: 'get',
         onLoad: function(data) {
           var rootElem;
-          rootElem = qmlEngine.parseQML(data);
+          data = qmlParser.parse(data);
+          rootElem = qmlEngine.createObjects(data);
           qmlEngine.exportAll();
           return qmlView.createElement(rootElem, root);
         }
