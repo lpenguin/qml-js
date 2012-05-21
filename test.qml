@@ -26,27 +26,22 @@ Rectangle {
             width: 30
             height: 30
             color: "yellow"
-            anchors.bottom: r1.bottom
+            anchors.centerIn: parent
         }
      }
-     Row {
-        //anchors.bottom: parent
-        y:200
-        Rectangle {
-            width: 100
-            height: 100
-            color: "red"
-        }
-        Rectangle {
-            width: 100
-            height: 100
-            color: "red"
-        }
-        Rectangle {
-            width: 100
-            height: 100
-            color: "red"
-        }
+     Row{
+         Repeater {
+            //anchors.bottom: parent
+            model: 3
+            y:200
+            Rectangle {
+                y:200
+                width: 100
+                height: 100
+                color: "red"
+            }
+
+         }
      }
      Rectangle {
         id: r2
@@ -74,6 +69,7 @@ Rectangle {
         text: "hello"
         anchors.right: r1.right
         anchors.top: r1.bottom
+        y:100
         width: 100
      }
 

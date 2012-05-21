@@ -1,4 +1,4 @@
-.Item,.Rectangle,.Text,.MouseArea {
+.Item,.Rectangle,.Text,.MouseArea,.Row,.Column,.Repeater {
     position: absolute;
     /*width: auto;*/
 }
@@ -8,4 +8,16 @@
 
 #control {
     margin-left: 800px;
+}
+
+table.Row tr{
+    padding: 0px;
+}
+
+table.Row tr td{
+    padding: 0px;
+}
+
+table.Row {
+    border-spacing: 0px;
 }

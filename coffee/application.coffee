@@ -22,9 +22,4 @@ atom.dom () ->
         r.appendTo root
 
 
-  #qmlView.createElement(canvas, atom.dom('#root'))
-#   context
-#      .fillAll( '#efebe7' )
-#      .fill( new Rectangle( 75, 75, 30, 30 ), 'green' )
-#      .fill( new Circle( 50, 50, 20 )    , '#c00'  )
 
