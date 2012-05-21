@@ -25,6 +25,6 @@ Rectangle {
          height: 100
          border.width: 1
          anchors.left: r1.right
-         anchors.top: r1.top+300
+         anchors.top: r1.top
      }
  }
