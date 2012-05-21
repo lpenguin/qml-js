@@ -29,6 +29,20 @@ Rectangle {
             anchors.bottom: r1.bottom
         }
      }
+     Row {
+        Rectangle {
+            width: 100
+            height: 100
+        }
+        Rectangle {
+            width: 100
+            height: 100
+        }
+        Rectangle {
+            width: 100
+            height: 100
+        }
+     }
      Rectangle {
         id: r2
          width: 100

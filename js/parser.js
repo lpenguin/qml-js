@@ -1,22 +1,15 @@
 (function() {
-  var AnchorLine, AnchorTypes, Circle, Item, MouseArea, QMLEngine, QMLParser, QMLView, Rectangle, Root, Shape, Text, elcount, exportNames, qmlEngine, qmlParser, qmlView;
-  var __hasProp = Object.prototype.hasOwnProperty, __slice = Array.prototype.slice, __indexOf = Array.prototype.indexOf || function(item) {
-    for (var i = 0, l = this.length; i < l; i++) {
-      if (this[i] === item) return i;
-    }
-    return -1;
-  }, __extends = function(child, parent) {
-    for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
-    function ctor() { this.constructor = child; }
-    ctor.prototype = parent.prototype;
-    child.prototype = new ctor;
-    child.__super__ = parent.prototype;
-    return child;
-  };
+  var AnchorLine, AnchorTypes, Circle, Item, MouseArea, QMLEngine, QMLParser, QMLView, Rectangle, Root, Row, Shape, Text, elcount, exportNames, qmlEngine, qmlParser, qmlView;
+  var __hasProp = Object.prototype.hasOwnProperty, __slice = Array.prototype.slice, __indexOf = Array.prototype.indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (__hasProp.call(this, i) && this[i] === item) return i; } return -1; }, __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype; return child; };
+
   elcount = 0;
+
   QMLParser = (function() {
+
     function QMLParser() {}
+
     QMLParser.prototype.elcount = 0;
+
     QMLParser.prototype.replaces = [
       {
         re: /on(\w+)\s*:\s*\{/,
@@ -49,6 +42,7 @@
         repl: ''
       }
     ];
+
     QMLParser.prototype.parseQML = function(qmlstr) {
       var line, lines, obj, replace, replaced, str, strs, _i, _j, _len, _len2, _ref;
       this.elcount = 0;
@@ -67,30 +61,38 @@
             break;
           }
         }
-        if (!replaced) {
-          strs.push(line);
-        }
+        if (!replaced) strs.push(line);
       }
       str = strs.join('\n').replace(/,$/, '');
+      console.log(str);
       obj = eval("({" + str + "})");
       return obj['elem0'];
     };
+
     QMLParser.prototype.parse = function(str) {
       return this.parseQML(str);
     };
+
     return QMLParser;
+
   })();
+
   QMLEngine = (function() {
+
     function QMLEngine() {}
+
     QMLEngine.prototype.items = {};
+
     QMLEngine.prototype.count = 0;
+
     QMLEngine.prototype.evaluate = function(str, context) {
       with(context){
-      r=eval(str)
-    }
-    ;      return r;
+      r=eval(str);
+    };      return r;
     };
+
     QMLEngine.prototype.depencities = {};
+
     QMLEngine.prototype.exportAll = function() {
       var item, name, _ref, _results;
       _ref = this.items;
@@ -101,25 +103,19 @@
       }
       return _results;
     };
+
     QMLEngine.prototype["export"] = function(item) {
       return Root[item.id] = item;
     };
+
     QMLEngine.prototype.defineDependency = function(id, key, depid, depkey) {
       var dependencyName, obj;
       obj = this.findItem(id);
-      if (depid === 'this') {
-        depid = id;
-      }
-      if (depid === 'parent') {
-        depid = obj.parent.id;
-      }
-      if (depkey === 'this') {
-        depkey = '*';
-      }
+      if (depid === 'this') depid = id;
+      if (depid === 'parent') depid = obj.parent.id;
+      if (depkey === 'this') depkey = '*';
       dependencyName = depid + '/' + depkey;
-      if (!(this.depencities[depid] != null)) {
-        this.depencities[depid] = {};
-      }
+      if (!(this.depencities[depid] != null)) this.depencities[depid] = {};
       if (!(this.depencities[depid][depkey] != null)) {
         this.depencities[depid][depkey] = [];
       }
@@ -128,12 +124,11 @@
         key: key
       });
     };
+
     QMLEngine.prototype.getDepencities = function(id, prop) {
       var d, dep, res, _i, _j, _len, _len2, _ref, _ref2;
       dep = this.depencities[id];
-      if (!dep) {
-        return null;
-      }
+      if (!dep) return null;
       res = [];
       if (dep['*']) {
         _ref = dep['*'];
@@ -149,18 +144,15 @@
           res.push(d);
         }
       }
-      if (!res.length) {
-        return null;
-      }
+      if (!res.length) return null;
       return res;
     };
+
     QMLEngine.prototype.updateDepencities = function(id, key, newvalue) {
       var dep, deps, _i, _len, _results;
       qmlView.updateDepencities(id, key, newvalue);
       deps = this.getDepencities(id, key);
-      if (!deps) {
-        return;
-      }
+      if (!deps) return;
       _results = [];
       for (_i = 0, _len = deps.length; _i < _len; _i++) {
         dep = deps[_i];
@@ -169,20 +161,22 @@
       }
       return _results;
     };
+
     QMLEngine.prototype.getNewId = function() {
       return 'obj' + this.count++;
     };
+
     QMLEngine.prototype.findItem = function(id) {
       return this.items[id];
     };
+
     QMLEngine.prototype.registerItem = function(obj) {
       return this.items[obj.id] = obj;
     };
+
     QMLEngine.prototype.createObjects = function(obj, parent) {
       var child, key, re, res;
-      if (!(parent != null)) {
-        parent = null;
-      }
+      if (!(parent != null)) parent = null;
       res = null;
       switch (obj.type) {
         case "Rectangle":
@@ -193,105 +187,138 @@
           break;
         case "MouseArea":
           res = new MouseArea(parent, obj);
+          break;
+        case "Row":
+          res = new Row(parent, obj);
       }
       re = /elem\d+/;
-      if (res == null) {
-        return;
-      }
+      if (res == null) return;
       for (key in obj) {
         if (!__hasProp.call(obj, key)) continue;
         child = obj[key];
-        if (typeof key !== 'string') {
-          continue;
-        }
-        if (re.test(key)) {
-          res.childs.push(this.createObjects(child, res));
-        }
+        if (typeof key !== 'string') continue;
+        if (re.test(key)) res.childs.push(this.createObjects(child, res));
       }
       return res;
     };
+
     return QMLEngine;
+
   })();
+
   QMLView = (function() {
+
     QMLView.prototype.domlinks = null;
+
     function QMLView() {
       this.domlinks = {};
     }
+
     QMLView.prototype.createElement = function(el, parent) {
-      var child, prop, res, subelement, _i, _j, _len, _len2, _ref, _ref2;
+      var child, childs, prop, res, _i, _j, _len, _len2, _ref, _ref2;
+      childs = [];
+      _ref = el.childs;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        child = _ref[_i];
+        childs.push(this.createElement(child, res));
+      }
       res = null;
       switch (el.type) {
         case 'Rectangle':
-          res = this.createRectangle(el, parent);
+          res = this.createRectangle(el, parent, childs);
           break;
         case 'Text':
-          res = this.createText(el, parent);
+          res = this.createText(el, parent, childs);
           break;
         case 'MouseArea':
-          res = this.createMouseArea(el, parent);
+          res = this.createMouseArea(el, parent, childs);
+          break;
+        case 'Row':
+          res = this.createRow(el, parent, childs);
       }
-      if (!(res != null)) {
-        return null;
-      }
+      if (!(res != null)) return null;
       res.attr({
         id: "qml-" + el.id
       });
       this.domlinks[el.id] = res;
-      _ref = el.getProperties();
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        prop = _ref[_i];
-        this.setDomProperty(res, prop, el);
-      }
-      _ref2 = el.childs;
+      _ref2 = el.getProperties();
       for (_j = 0, _len2 = _ref2.length; _j < _len2; _j++) {
-        child = _ref2[_j];
-        subelement = this.createElement(child, res);
+        prop = _ref2[_j];
+        this.setDomProperty(res, prop, el);
       }
       return res;
     };
+
     QMLView.prototype.updateDepencities = function(id, property, newvalue) {
       var domobj, el;
       el = qmlEngine.findItem(id);
       domobj = this.domlinks[id];
-      if (!domobj) {
-        return;
-      }
+      if (!domobj) return;
       return this.setDomProperty(domobj, property, el);
     };
+
     QMLView.prototype.setDomProperty = function(domobj, property, el) {
       var f, value;
       f = this.propFunctions[property];
-      if (!f) {
-        return;
-      }
+      if (!f) return;
       value = el[property];
       return f(domobj, value, el);
     };
-    QMLView.prototype.createRectangle = function(el, parent) {
-      var domobj;
-      domobj = atom.dom.create('div').appendTo(parent);
+
+    QMLView.prototype.createRectangle = function(el, parent, childs) {
+      var child, domobj, _i, _len;
+      domobj = atom.dom.create('div');
       domobj.addClass('Rectangle');
+      for (_i = 0, _len = childs.length; _i < _len; _i++) {
+        child = childs[_i];
+        child.appendTo(domobj);
+      }
       return domobj;
     };
-    QMLView.prototype.createText = function(el, parent) {
-      var domobj;
-      domobj = atom.dom.create('span').appendTo(parent);
+
+    QMLView.prototype.createText = function(el, parent, childs) {
+      var child, domobj, _i, _len;
+      domobj = atom.dom.create('span');
       domobj.addClass('Text');
+      for (_i = 0, _len = childs.length; _i < _len; _i++) {
+        child = childs[_i];
+        child.appendTo(domobj);
+      }
       return domobj;
     };
-    QMLView.prototype.createMouseArea = function(el, parent) {
-      var domobj;
-      domobj = atom.dom.create('div').appendTo(parent);
+
+    QMLView.prototype.createMouseArea = function(el, parent, childs) {
+      var child, domobj, _i, _len;
+      domobj = atom.dom.create('div');
       domobj.addClass('MouseArea');
       domobj.bind({
         click: function(e) {
-          with(el){
-      el.onClicked();
-      } ;          return false;
+          el.onClicked();
+          return false;
         }
       });
+      for (_i = 0, _len = childs.length; _i < _len; _i++) {
+        child = childs[_i];
+        child.appendTo(domobj);
+      }
       return domobj;
     };
+
+    QMLView.prototype.createRow = function(el, parent, childs) {
+      var child, domobj, td, tr, _i, _len;
+      domobj = atom.dom.create('table');
+      domobj.addClass('Row');
+      tr = atom.dom.create('tr');
+      tr.appendTo(domobj);
+      for (_i = 0, _len = childs.length; _i < _len; _i++) {
+        child = childs[_i];
+        td = atom.dom.create('td');
+        td.appendTo(tr);
+        child.appendTo(td);
+      }
+      return domobj;
+    };
+
     QMLView.prototype.getCSSMetrics = function(domobj) {
       var h, metric, w;
       domobj = domobj.first;
@@ -307,6 +334,7 @@
       };
       return metric;
     };
+
     QMLView.prototype.propFunctions = {
       width: function(domobj, v) {
         return domobj.css({
@@ -355,9 +383,7 @@
       },
       'anchors.centerIn': function(domobj, v, el) {
         var m, parentm;
-        if (!el.parent) {
-          return;
-        }
+        if (!el.parent) return;
         m = qmlView.getCSSMetrics(domobj);
         parentm = qmlView.getCSSMetrics(qmlView.domlinks[el.parent.id]);
         domobj.css({
@@ -367,11 +393,17 @@
         return domobj;
       }
     };
+
     return QMLView;
+
   })();
+
   qmlEngine = new QMLEngine();
+
   qmlView = new QMLView();
+
   qmlParser = new QMLParser();
+
   exportNames = function() {
     var cl, names, _i, _len;
     names = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
@@ -381,52 +413,46 @@
     }
     return null;
   };
+
   AnchorTypes = {
     left: 0,
     right: 1,
     top: 2,
     bottom: 3
   };
+
   AnchorLine = (function() {
+
     AnchorLine.prototype.type = AnchorTypes.left;
+
     AnchorLine.prototype.item = null;
+
     function AnchorLine(type, item) {
       this.type = type;
       this.item = item;
     }
+
     AnchorLine.prototype.value = function(anchoreditem) {
       switch (this.type) {
         case AnchorTypes.left:
-          if (this.item.isParent(anchoreditem)) {
-            return 0;
-          }
-          if (this.item.isSibling(anchoreditem)) {
-            return this.item.x;
-          }
+          if (this.item.isParent(anchoreditem)) return 0;
+          if (this.item.isSibling(anchoreditem)) return this.item.x;
           throw Error("Cannot anchor to an item that isn't a parent or sibling");
           break;
         case AnchorTypes.right:
-          if (this.item.isParent(anchoreditem)) {
-            return this.item.width;
-          }
+          if (this.item.isParent(anchoreditem)) return this.item.width;
           if (this.item.isSibling(anchoreditem)) {
             return this.item.x + this.item.width;
           }
           throw Error("Cannot anchor to an item that isn't a parent or sibling");
           break;
         case AnchorTypes.top:
-          if (this.item.isParent(anchoreditem)) {
-            return 0;
-          }
-          if (this.item.isSibling(anchoreditem)) {
-            return this.item.height;
-          }
+          if (this.item.isParent(anchoreditem)) return 0;
+          if (this.item.isSibling(anchoreditem)) return this.item.height;
           throw Error("Cannot anchor to an item that isn't a parent or sibling");
           break;
         case AnchorTypes.bottom:
-          if (this.item.isParent(anchoreditem)) {
-            return this.item.height;
-          }
+          if (this.item.isParent(anchoreditem)) return this.item.height;
           if (this.item.isSibling(anchoreditem)) {
             return this.item.y + this.item.height;
           }
@@ -434,66 +460,79 @@
       }
       throw Error("Undefined anchor type");
     };
+
     return AnchorLine;
+
   })();
+
   ({
     isValid: function(item) {
       return item.parent === this.item || item.parent === this.item.parent;
     }
   });
+
   Item = (function() {
+
     Item.prototype.parent = null;
+
     Item.prototype.childs = null;
+
     Item.prototype.id = null;
+
     Item.prototype.type = 'Item';
+
     Item.prototype.x = 0;
+
     Item.prototype.y = 0;
+
     Item.prototype.width = 0;
+
     Item.prototype.height = 0;
+
     Item.prototype.color = "''";
+
     Item.prototype['anchors.centerIn'] = null;
+
     Item.prototype['anchors.fill'] = null;
+
     Item.prototype['anchors.left'] = null;
+
     Item.prototype['anchors.right'] = null;
+
     Item.prototype['anchors.top'] = null;
+
     Item.prototype['anchors.bottom'] = null;
+
     Item.prototype['border.color'] = '"black"';
+
     Item.prototype['border.width'] = 0;
+
     Item.prototype.anchors = {
       'anchors.left': function(v) {
-        if (v == null) {
-          return;
-        }
+        if (v == null) return;
         return this.x = v.value(this);
       },
       'anchors.right': function(v) {
-        if (v == null) {
-          return;
-        }
+        if (v == null) return;
         return this.x = v.value(this) - this.width;
       },
       'anchors.top': function(v) {
-        if (v == null) {
-          return;
-        }
+        if (v == null) return;
         return this.y = v.value(this);
       },
       'anchors.bottom': function(v) {
-        if (v == null) {
-          return;
-        }
+        if (v == null) return;
         return this.y = v.value(this) - this.height;
       },
       'anchors.fill': function(v) {
-        if (v == null) {
-          return;
-        }
+        if (v == null) return;
         this.y = 0;
         this.x = 0;
         this.width = v.width;
         return this.height = v.height;
       }
     };
+
     Item.prototype.dynamic = {
       'left': {
         get: function() {
@@ -518,12 +557,15 @@
         deps: ['height']
       }
     };
+
     Item.prototype.isSibling = function(item) {
       return this.parent === item.parent;
     };
+
     Item.prototype.isParent = function(item) {
       return this === item.parent;
     };
+
     Item.prototype.appendSetter = function(prop, setter) {
       var oldsetter;
       oldsetter = this.__lookupSetter__(prop);
@@ -532,36 +574,39 @@
         return oldsetter.call(this, v);
       });
     };
+
     Item.prototype.ready = function() {
+      console.log("" + this.id + " ready");
       return null;
     };
+
     Item.prototype.defineGetter = function(propName) {
       return this.__defineGetter__(propName, function() {
         return qmlEngine.evaluate(this["_" + propName], this);
       });
     };
+
     Item.prototype.defineSetter = function(propName) {
       return this.__defineSetter__(propName, function(value) {
-        if (typeof value === "string") {
-          value = "\"" + value + "\"";
-        }
+        if (typeof value === "string") value = "\"" + value + "\"";
         this['_' + propName] = value;
         return qmlEngine.updateDepencities(this.id, propName, value);
       });
     };
+
     Item.prototype.readOptions = function(options) {
       var prop, _i, _len, _ref, _results;
-      _ref = this.getProperties(true);
+      _ref = this.getPropertiesPublic(true);
       _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         prop = _ref[_i];
-        if (options[prop] == null) {
-          continue;
-        }
-        _results.push(this[prop] = options[prop]);
+        this['_' + prop] = this[prop];
+        if (options[prop] == null) continue;
+        _results.push(this['_' + prop] = options[prop]);
       }
       return _results;
     };
+
     function Item(parent, options) {
       var prop, setter, _ref;
       this.childs = [];
@@ -582,9 +627,7 @@
       this.readOptions(options);
       console.log('created: ' + this.type);
       console.log(' with id: ' + this.id);
-      if (this.parent) {
-        console.log(' with parent: ' + this.parent.id);
-      }
+      if (this.parent) console.log(' with parent: ' + this.parent.id);
       this.defineGettersSetters();
       _ref = this.anchors;
       for (prop in _ref) {
@@ -592,22 +635,22 @@
         this.appendSetter(prop, setter);
         this[prop] = this[prop];
       }
-      this.ready;
+      this.ready();
     }
+
     Item.prototype.defineDynamicSetter = function(thisid, propname) {
       return this.__defineSetter__(propname, function(v) {
         return qmlEngine.updateDepencities(this.id, propname, v);
       });
     };
+
     Item.prototype.defineDynamicProperties = function() {
       var dep, prop, propname, _i, _len, _ref, _ref2;
       _ref = this.dynamic;
       for (propname in _ref) {
         if (!__hasProp.call(_ref, propname)) continue;
         prop = _ref[propname];
-        if (prop.get) {
-          this.__defineGetter__(propname, prop.get);
-        }
+        if (prop.get) this.__defineGetter__(propname, prop.get);
         this.defineDynamicSetter(this.id, propname);
         if (prop.deps) {
           _ref2 = prop.deps;
@@ -618,58 +661,63 @@
         }
       }
     };
+
     Item.prototype.getProperties = function(getnullprops) {
       var key, res, skipnames, value;
-      if (getnullprops == null) {
-        getnullprops = false;
+      if (getnullprops == null) getnullprops = false;
+      res = [];
+      skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic'];
+      for (key in this) {
+        value = this[key];
+        if (!key.match(/^_/) || __indexOf.call(skipnames, key) >= 0) continue;
+        if (!(value != null) && !getnullprops) continue;
+        res.push(key.replace(/^_/, ''));
       }
+      return res;
+    };
+
+    Item.prototype.getPropertiesPublic = function(getnullprops) {
+      var key, res, skipnames, value;
+      if (getnullprops == null) getnullprops = false;
       res = [];
       skipnames = ['parent', 'id', 'childs', 'type', 'dynamic'];
       for (key in this) {
         value = this[key];
-        if (__indexOf.call(skipnames, key) >= 0 || typeof this[key] === 'function' || key.match(/^_/)) {
-          continue;
-        }
-        if (!(value != null) && !getnullprops) {
-          continue;
-        }
-        res.push(key);
+        if (key.match(/^_/) || __indexOf.call(skipnames, key) >= 0) continue;
+        if (!(value != null) && !getnullprops) continue;
+        res.push(key.replace(/^_/, ''));
       }
       return res;
     };
+
     Item.prototype.getPropertiesObj = function(getnullprops) {
       var key, res, skipnames, value;
-      if (getnullprops == null) {
-        getnullprops = false;
-      }
+      if (getnullprops == null) getnullprops = false;
       res = {};
-      skipnames = ['parent', 'id', 'childs', 'type', 'dynamic'];
+      skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic'];
       for (key in this) {
         value = this[key];
-        if (__indexOf.call(skipnames, key) >= 0 || typeof this[key] === 'function' || key.match(/^_/)) {
-          continue;
-        }
-        if (!(value != null) && !getnullprops) {
-          continue;
-        }
-        res[key] = value;
+        if (!key.match(/^_/) || __indexOf.call(skipnames, key) >= 0) continue;
+        if (!(value != null) && !getnullprops) continue;
+        res[key.replace(/^_/, '')] = value;
       }
       return res;
     };
+
     Item.prototype.defineGettersSetters = function() {
       var dep, key, value, _i, _len, _ref, _ref2;
       _ref = this.getPropertiesObj(true);
       for (key in _ref) {
         value = _ref[key];
-        if (this.dynamic[key] != null) {
-          continue;
-        }
+        if (this.dynamic[key] != null) continue;
         if (value != null) {
           this['_' + key] = value;
-          _ref2 = this.getDependencyNames(value);
-          for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-            dep = _ref2[_i];
-            qmlEngine.defineDependency(this.id, key, dep.id, dep.key);
+          if (typeof value !== 'string') {
+            _ref2 = this.getDependencyNames(value);
+            for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+              dep = _ref2[_i];
+              qmlEngine.defineDependency(this.id, key, dep.id, dep.key);
+            }
           }
         }
         this.defineGetter(key);
@@ -677,28 +725,21 @@
       }
       return null;
     };
+
     Item.prototype.getDependencyNames = function(nameStr) {
       var digre, id, key, m, name, namere, r, res, strre, _i, _len;
       strre = new RegExp('^(\"|\').*(\"|\')$');
       digre = new RegExp('^[0-9.]+$');
-      if (typeof nameStr !== 'string') {
-        return [];
-      }
+      if (typeof nameStr !== 'string') return [];
       nameStr.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-      if (strre.test(nameStr) || digre.test(nameStr)) {
-        return [];
-      }
+      if (strre.test(nameStr) || digre.test(nameStr)) return [];
       namere = /\w+[\w\.]*\w*/g;
       m = nameStr.match(namere);
-      if (!m) {
-        return [];
-      }
+      if (!m) return [];
       res = [];
       for (_i = 0, _len = m.length; _i < _len; _i++) {
         name = m[_i];
-        if (digre.test(name)) {
-          continue;
-        }
+        if (digre.test(name)) continue;
         if (name === 'parent') {
           res.push({
             id: 'parent',
@@ -721,56 +762,116 @@
       }
       return res;
     };
+
     return Item;
+
   })();
+
   Shape = (function() {
+
     __extends(Shape, Item);
+
     function Shape() {
       Shape.__super__.constructor.apply(this, arguments);
     }
+
     Shape.prototype.type = 'Shape';
+
     return Shape;
+
   })();
+
   Text = (function() {
+
     __extends(Text, Shape);
+
     function Text() {
       Text.__super__.constructor.apply(this, arguments);
     }
+
     Text.prototype.text = '""';
+
     Text.prototype.type = 'Text';
+
     return Text;
+
   })();
+
   Circle = (function() {
+
     __extends(Circle, Shape);
+
     function Circle() {
       Circle.__super__.constructor.apply(this, arguments);
     }
+
     Circle.prototype.radius = 0;
+
     Circle.prototype.type = 'Circle';
+
     return Circle;
+
   })();
+
   Rectangle = (function() {
+
     __extends(Rectangle, Shape);
+
     function Rectangle() {
       Rectangle.__super__.constructor.apply(this, arguments);
     }
+
     Rectangle.prototype.radius = null;
+
     Rectangle.prototype.type = 'Rectangle';
+
     return Rectangle;
+
   })();
+
   MouseArea = (function() {
+
     __extends(MouseArea, Item);
+
     function MouseArea() {
       MouseArea.__super__.constructor.apply(this, arguments);
     }
+
     MouseArea.prototype.ready = function() {
-      return console.log(this.onClicked.toString());
+      var s;
+      s = this.onClicked.toString().replace(/function\s*\(\s*\)\s*\{/, 'function(){with(this){') + "}";
+      this['_onClicked'] = eval("(" + s + ")");
+      return MouseArea.__super__.ready.call(this);
     };
+
     MouseArea.prototype.onClicked = null;
+
     MouseArea.prototype.type = 'MouseArea';
+
+    MouseArea.prototype.prop = '';
+
     return MouseArea;
+
   })();
+
+  Row = (function() {
+
+    __extends(Row, Item);
+
+    function Row() {
+      Row.__super__.constructor.apply(this, arguments);
+    }
+
+    Row.prototype.type = 'Row';
+
+    return Row;
+
+  })();
+
   Root = window;
+
   window.Root = Root;
+
   exportNames('Item', 'Shape', 'Text', 'Rectangle', 'Circle', 'QMLEngine', 'qmlView', 'qmlEngine', 'qmlParser');
+
 }).call(this);

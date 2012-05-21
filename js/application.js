@@ -1,4 +1,4 @@
-(function() {
+
   atom.dom(function() {
     var root;
     root = atom.dom('div').first;
@@ -28,13 +28,13 @@
         type: 'plain',
         method: 'get',
         onLoad: function(data) {
-          var rootElem;
+          var r, rootElem;
           data = qmlParser.parse(data);
           rootElem = qmlEngine.createObjects(data);
           qmlEngine.exportAll();
-          return qmlView.createElement(rootElem, root);
+          r = qmlView.createElement(rootElem, root);
+          return r.appendTo(root);
         }
       });
     });
   });
-}).call(this);

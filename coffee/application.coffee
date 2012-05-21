@@ -18,7 +18,9 @@ atom.dom () ->
         data = qmlParser.parse(data)
         rootElem = qmlEngine.createObjects(data)
         qmlEngine.exportAll()
-        qmlView.createElement rootElem, root
+        r = qmlView.createElement rootElem, root
+        r.appendTo root
+
 
   #qmlView.createElement(canvas, atom.dom('#root'))
 #   context

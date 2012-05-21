@@ -63,7 +63,7 @@ class QMLParser
         strs.push  line
 
     str = strs.join('\n').replace( /,$/, '' )
-#    console.log str
+    console.log str
     obj = eval "({"+str+"})"
     return obj['elem0']
 
@@ -77,9 +77,8 @@ class QMLEngine
   count: 0
   evaluate: (str, context)->
     `with(context){
-      r=eval(str)
-    }
-    `
+      r=eval(str);
+    }`
     return r
   depencities: {}
 
@@ -139,6 +138,7 @@ class QMLEngine
       when "Rectangle" then res =  new Rectangle parent, obj
       when "Text" then res = new Text parent, obj
       when "MouseArea" then res = new MouseArea parent, obj
+      when "Row" then res = new Row parent, obj
     re = /elem\d+/
     return unless res?
 
@@ -153,11 +153,16 @@ class QMLView
   constructor: ()->
     @domlinks = {}
   createElement: (el, parent)->
+    childs = []
+    for child in el.childs
+      childs.push @createElement child, res
+
     res = null
     switch el.type
-      when 'Rectangle' then res = @createRectangle el, parent
-      when 'Text' then res = @createText el, parent
-      when 'MouseArea' then res = @createMouseArea el, parent
+      when 'Rectangle' then res = @createRectangle el, parent, childs
+      when 'Text' then res = @createText el, parent, childs
+      when 'MouseArea' then res = @createMouseArea el, parent, childs
+      when 'Row' then res = @createRow el, parent, childs
     return null if not res?
 
     res.attr id: "qml-#{el.id}"
@@ -165,8 +170,7 @@ class QMLView
 
     for prop in el.getProperties()
       @setDomProperty(res, prop, el)
-    for child in el.childs
-      subelement = @createElement child, res
+
     return res
   updateDepencities: (id, property, newvalue)->
     el = qmlEngine.findItem(id)
@@ -180,25 +184,40 @@ class QMLView
     value = el[property]
     f(domobj, value, el)
 
-  createRectangle: (el, parent)->
-    #domobj = parent.create 'div'
-    domobj = atom.dom.create('div').appendTo( parent );
+  createRectangle: (el, parent, childs)->
+    domobj = atom.dom.create('div')#.appendTo( parent );
     domobj.addClass 'Rectangle'
+    for child in childs
+      child.appendTo domobj
     return domobj
-  createText: (el, parent)->
+  createText: (el, parent, childs)->
     #domobj = parent.create 'div'
-    domobj = atom.dom.create('span').appendTo( parent );
+    domobj = atom.dom.create('span')#.appendTo( parent );
     domobj.addClass 'Text'
+    for child in childs
+      child.appendTo domobj
     return domobj
-  createMouseArea: (el, parent)->
+  createMouseArea: (el, parent, childs)->
     #domobj = parent.create 'div'
-    domobj = atom.dom.create('div').appendTo( parent );
+    domobj = atom.dom.create('div')#.appendTo( parent );
     domobj.addClass 'MouseArea'
     domobj.bind click: (e)->
-      `with(el){
-      el.onClicked();
-      } `
+      el.onClicked()
       return false
+    for child in childs
+      child.appendTo domobj
+    return domobj
+
+  createRow: (el, parent, childs)->
+    domobj = atom.dom.create('table')#.appendTo( parent );
+    #
+    domobj.addClass 'Row'
+    tr = atom.dom.create 'tr'
+    tr.appendTo domobj
+    for child in childs
+      td = atom.dom.create 'td'
+      td.appendTo tr
+      child.appendTo td
     return domobj
   #getCSSMetric: (domobj, cssname)->
   #  value = domobj.first[ cssname ]
@@ -382,10 +401,17 @@ class Item
       setter.call this, v
       oldsetter.call this, v
   ready: () ->
+    console.log "#{@id} ready"
     return null
   defineGetter: (propName) ->
-    @.__defineGetter__ propName, ()-> qmlEngine.evaluate this["_"+propName], this
-
+    @.__defineGetter__ propName, ()->
+      #trace = printStackTrace()
+      #console.log '>>>>getter<<<<'
+      #console.log trace.join '\n'
+      #if typeof this["_"+propName] == 'string'
+      return qmlEngine.evaluate this["_"+propName], this
+      #else
+      #  return this["_"+propName]
   defineSetter: (propName) ->
     @__defineSetter__ propName, (value)->
       if typeof value == "string"
@@ -394,9 +420,12 @@ class Item
       qmlEngine.updateDepencities(@id, propName, value)
 
   readOptions: (options) ->
-    for prop in @getProperties(true)
+    for prop in @getPropertiesPublic(true)
+      this['_'+prop] = this[prop]
       continue unless options[prop]?
-      this[prop] = options[prop]
+      #if typeof options[prop] == 'function'
+      #  options[prop] = '__f__'+options[prop].toString().replace(/function\s*\(\s*\)\s*\{/, '').replace(/\}$/, '')
+      this['_'+prop] = options[prop]
 
   constructor: (parent, options) ->
     @childs = []
@@ -421,7 +450,8 @@ class Item
     for prop, setter of @anchors
       @appendSetter prop, setter
       this[prop] = this[prop]
-    @ready
+    @ready()
+
   defineDynamicSetter: (thisid, propname)->
     @__defineSetter__ propname, (v)->
       qmlEngine.updateDepencities(@id, propname, v)
@@ -438,24 +468,28 @@ class Item
 
   getProperties: (getnullprops=false)->
     res = []
+    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
+    for key, value of this
+      continue if not key.match(/^_/) or key in skipnames
+      continue if not value? && not getnullprops
+      res.push key.replace /^_/,''
+    return res
+  getPropertiesPublic: (getnullprops=false)->
+    res = []
     skipnames = ['parent', 'id', 'childs', 'type', 'dynamic']
     for key, value of this
-      if key in skipnames or typeof this[key] == 'function' or key.match /^_/
-        continue
-      if not value? && not getnullprops
-        continue
-      res.push key
+      continue if key.match(/^_/ )or key in skipnames
+      continue if not value? && not getnullprops
+      res.push key.replace /^_/,''
     return res
 
   getPropertiesObj: (getnullprops=false)->
     res = {}
-    skipnames = ['parent', 'id', 'childs', 'type', 'dynamic']
+    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
     for key, value of this
-      if key in skipnames or typeof this[key] == 'function' or key.match /^_/
-        continue
-      if not value? && not getnullprops
-        continue
-      res[key] = value
+      continue if not key.match(/^_/) or key in skipnames
+      continue if not value? && not getnullprops
+      res[key.replace /^_/,''] = value
     return res
 
   defineGettersSetters: ()->
@@ -463,9 +497,11 @@ class Item
       continue if @dynamic[key]?
       if value?
         this['_'+key] = value
-        for dep in @getDependencyNames(value)
-          qmlEngine.defineDependency(@id, key, dep.id, dep.key)
-
+        unless typeof value == 'string'
+          for dep in @getDependencyNames(value)
+            qmlEngine.defineDependency(@id, key, dep.id, dep.key)
+        #else
+        #  this['_'+key] = '"'+(value.replace /^__f__/, '').replace( /\"/g ,"\\\"").replace(/\n/g, "\"+\n+\"")+'"'
       @defineGetter key
       @defineSetter key
     return null
@@ -515,12 +551,18 @@ class Rectangle extends Shape
 
 class MouseArea extends Item
   ready: ()->
-    console.log this.onClicked.toString()
-    #super()
+    s = this.onClicked.toString()
+                          #.replace(/\"/g,"\\\"")
+                          .replace(/function\s*\(\s*\)\s*\{/, 'function(){with(this){')+"}"
+    this['_onClicked'] = eval "("+s+")"
+
+    super()
   onClicked: null
   type: 'MouseArea'
+  prop: ''
 
-
+class Row extends Item
+  type: 'Row'
 #item = qmlEngine.parseQML str
 #canvas = qmlEngine.findItem('canvas')
 
