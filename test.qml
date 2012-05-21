@@ -30,8 +30,11 @@ Rectangle {
         }
      }
      Row{
+        id: row
+        anchors.right: parent.right
          Repeater {
             //anchors.bottom: parent
+            id: repeater
             model: 3
             y:200
             Rectangle {
@@ -42,6 +45,18 @@ Rectangle {
             }
 
          }
+     }
+     Column {
+        id: column
+        Repeater {
+            model: 3
+            x: 200
+        Rectangle {
+            width:20
+            height:20
+            color: "black"
+        }
+        }
      }
      Rectangle {
         id: r2

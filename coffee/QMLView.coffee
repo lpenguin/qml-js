@@ -15,6 +15,8 @@ class QMLView
       when 'Text' then dom = @createText el, parent
       when 'MouseArea' then dom = @createMouseArea el, parent
       when 'Row' then dom = @createRow el, parent
+      when 'Column' then dom = @createColumn el, parent
+      when 'Repeater' then dom = @createRepeater el, parent
     return null if not dom
 
     dom.attr id: "qml-#{el.id}"
@@ -27,12 +29,8 @@ class QMLView
     for child in el.children
       children.push @createElement child, dom
 
-    switch el.type
-      when 'Row' then @appendChildrenToRow dom, children
-
-      else
-        for child in children
-          child.appendTo dom
+    for child in children
+      child.appendTo dom
           
     return dom
   appendChildrenToRow: (row, children)->
@@ -42,16 +40,17 @@ class QMLView
       td = atom.dom.create 'td'
       td.appendTo tr
       child.appendTo td
-      child.css position: 'static'
+      #child.css position: 'static'
 
   appendChildrenToColumn: (column, children)->
+
+    #  tr = atom.dom.create 'tr'
+     # tr.appendTo column
+     # td = atom.dom.create 'td'
+    #  td.appendTo tr
     for child in children
-      tr = atom.dom.create 'tr'
-      tr.appendTo column
-      td = atom.dom.create 'td'
-      td.appendTo tr
-      child.appendTo td
-      child.css position: 'static'
+      child.appendTo column
+      #child.css position: 'static'
 
   updateDepencities: (id, property, newvalue)->
     el = qmlEngine.findItem(id)
@@ -69,6 +68,12 @@ class QMLView
     domobj = atom.dom.create('div')#.appendTo( parent );
     domobj.addClass 'Rectangle'
     return domobj
+
+  createRepeater: (el, parent)->
+    domobj = atom.dom.create('div')#.appendTo( parent );
+    domobj.addClass 'Repeater'
+    return domobj
+
   createText: (el, parent)->
     domobj = atom.dom.create('span')#.appendTo( parent );
     domobj.addClass 'Text'

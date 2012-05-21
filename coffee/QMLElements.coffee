@@ -71,28 +71,41 @@ class Item
   'border.width': 0
 
   anchors:
-    'anchors.left': (v)->
-      return unless v?
-      @x = v.value(this)
-    'anchors.right': (v)->
-      return unless v?
-      @x = v.value(this) - @width
-    'anchors.top': (v)->
-      return unless v?
-      @y = v.value(this)
-    'anchors.bottom': (v)->
-      return unless v?
-      @y = v.value(this) - @height
-    'anchors.fill': (v)->
-      return unless v?
-      @y = 0
-      @x = 0
-      @width = v.width
-      @height = v.height
-    'anchors.centerIn': (v)->
-      return unless v?
-      @y = v.width/2
-      @x = v.height/2
+    'anchors.left':
+      set: (v)->
+        return unless v?
+        @x = v.value(this)
+#    'anchors.right':
+#      set: (v)->
+#        return unless v?
+#        @x = v.value(this) - @width
+#      dep: ['width']
+    'anchors.top':
+      set: (v)->
+        return unless v?
+        @y = v.value(this)
+    'anchors.bottom':
+      set: (v)->
+        return unless v?
+        @y = v.value(this) - @height
+    'anchors.fill':
+      set: (v)->
+        return unless v?
+        @y = 0
+        @x = 0
+        @width = v.width
+        @height = v.height
+    'anchors.centerIn':
+       set: (v)->
+        return unless v?
+        @y = v.width/2
+        @x = v.height/2
+    'anchors.right':
+      set: (v)->
+        return unless v?
+        @x = v.value(this) - @width
+
+
   dynamic:
     'left':
       get: ()->
@@ -108,6 +121,11 @@ class Item
       get: ()->
         new AnchorLine AnchorTypes.bottom, this
       deps: ['height']
+    'anchors.right':
+      set: (v)->
+        return unless v?
+        @x = v.value(this) - @width
+      deps: ['width']
 
   isSibling: (item)->
     return @parent == item.parent
@@ -161,14 +179,15 @@ class Item
     @defineDynamicProperties()
     @readOptions(options)
 
-    console.log 'created: '+@type
-    console.log ' with id: '+@id
-    console.log ' with parent: '+@parent.id if @parent
+#    console.log 'created: '+@type
+#    console.log ' with id: '+@id
+#    console.log ' with parent: '+@parent.id if @parent
     @defineGettersSetters()
-    for prop, setter of @anchors
-      @appendSetter prop, setter
+    for prop, anchor of @anchors
+      @appendSetter prop, anchor.set
+      qmlEngine.defineDependency(this.id, prop, this.id, anchor.dep) if anchor.dep
       this[prop] = this[prop]
-    @ready()
+    #@ready()
 
   defineDynamicSetter: (thisid, propname)->
     @__defineSetter__ propname, (v)->
@@ -178,10 +197,11 @@ class Item
     for own propname, prop of @dynamic
       @__defineGetter__ propname, prop.get if prop.get
       @defineDynamicSetter @id, propname #if prop.set
+      @appendSetter propname, prop.set if prop.set
       if prop.deps
         for dep in prop.deps
           qmlEngine.defineDependency(@id, propname, @id, dep)
-
+      this[propname] = this[propname] if prop.set
     return undefined
 
   getProperties: (getnullprops=false)->
@@ -284,14 +304,47 @@ class Row extends Item
   type: 'Row'
   width: null
   height: null
+  ready: ()->
+    console.log 'column ready'
+    width = 0
+    maxheight = 0
+    for child in @children
+      child.x = width
+      width+= child.width
+      maxheight = child.height if child.height > maxheight
+
+    @width = width
+    @height = maxheight
 
 class Column extends Item
   spacing: 0
   type: 'Column'
-  width: null
-  height: null
+  width: 0
+  height: 0
+  ready: ()->
+    console.log 'column ready'
+    height = 0
+    maxwidth = 0
+    for child in @children
+      child.y = height
+      height+= child.height
+      maxwidth = child.width if child.width > maxwidth
+    @height = height
+    @width = maxwidth
 
 class Repeater extends Item
   model: null
+  type: "Repeater"
+  ready: ()->
+    if @_repeatedItem
+      repeatedItem = @_repeatedItem
+      for i in [0..@model-1]
+        newchild = qmlEngine.createObjects repeatedItem, @parent
+        newchild.x = i*newchild.width
+        @parent.children.push newchild
+
+    #index = @parent.children.indexOf(this)
+    #@parent.children = @parent.children.splice(index, 1)
+
 
 exportNames 'Item', 'Rectangle', 'MouseArea', 'Text', 'Row', 'Shape', 'AnchorLine', 'AnchorTypes', 'Column', 'Repeater'
