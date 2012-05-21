@@ -16,9 +16,9 @@ class QMLParser
     ,
       re:  /(\w+)\s*{/g #item declaration
       repl:  (tmpl, found) -> 'elem'+(elcount++)+': { "type": "'+found+'",'
-    ,
-      re: /(})/ #close bracket
-      repl: '$1,'
+    #,
+     # re: /(})/ #close bracket
+    #  repl: '$1,'
       #do: ()->@closedbr++
     #,
     #  re: /({})/ #close bracket
@@ -48,6 +48,7 @@ class QMLParser
 
   parseQML: (qmlstr) ->
     @elcount = 0
+    qmlstr=qmlstr.replace /\}([\s\n]*)(\w+)[\s\n]*\{/g, '},$1 $2 {'
     lines = qmlstr.split /[\n\;]/
     strs = []
 
@@ -62,7 +63,7 @@ class QMLParser
         strs.push  line
 
     str = strs.join('\n').replace( /,$/, '' )
-    console.log str
+#    console.log str
     obj = eval "({"+str+"})"
     return obj['elem0']
 
@@ -380,7 +381,8 @@ class Item
     this.__defineSetter__ prop, (v)->
       setter.call this, v
       oldsetter.call this, v
-
+  ready: () ->
+    return null
   defineGetter: (propName) ->
     @.__defineGetter__ propName, ()-> qmlEngine.evaluate this["_"+propName], this
 
@@ -419,7 +421,7 @@ class Item
     for prop, setter of @anchors
       @appendSetter prop, setter
       this[prop] = this[prop]
-
+    @ready
   defineDynamicSetter: (thisid, propname)->
     @__defineSetter__ propname, (v)->
       qmlEngine.updateDepencities(@id, propname, v)
@@ -512,6 +514,9 @@ class Rectangle extends Shape
   type: 'Rectangle'
 
 class MouseArea extends Item
+  ready: ()->
+    console.log this.onClicked.toString()
+    #super()
   onClicked: null
   type: 'MouseArea'
 

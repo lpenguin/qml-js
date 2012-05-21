@@ -20,7 +20,10 @@
     QMLParser.prototype.replaces = [
       {
         re: /on(\w+)\s*:\s*\{/,
-        repl: 'on$1: function(){'
+        repl: 'on$1: function(){',
+        "do": function() {
+          return this.inevent = true;
+        }
       }, {
         re: /on(\w+)\s*:\s*(\w[^\{]+)/,
         repl: "on$1: function()\{$2\}"
@@ -29,9 +32,6 @@
         repl: function(tmpl, found) {
           return 'elem' + (elcount++) + ': { "type": "' + found + '",';
         }
-      }, {
-        re: /(})/,
-        repl: '$1,'
       }, {
         re: /([\w\.]+)\:\s*(\d+)$/,
         repl: '"$1": $2,'
@@ -52,6 +52,7 @@
     QMLParser.prototype.parseQML = function(qmlstr) {
       var line, lines, obj, replace, replaced, str, strs, _i, _j, _len, _len2, _ref;
       this.elcount = 0;
+      qmlstr = qmlstr.replace(/\}([\s\n]*)(\w+)[\s\n]*\{/g, '},$1 $2 {');
       lines = qmlstr.split(/[\n\;]/);
       strs = [];
       for (_i = 0, _len = lines.length; _i < _len; _i++) {
@@ -71,7 +72,6 @@
         }
       }
       str = strs.join('\n').replace(/,$/, '');
-      console.log(str);
       obj = eval("({" + str + "})");
       return obj['elem0'];
     };
@@ -286,7 +286,7 @@
       domobj.bind({
         click: function(e) {
           with(el){
-      eval(el.onClicked.toString()+"()");
+      el.onClicked();
       } ;          return false;
         }
       });
@@ -532,6 +532,9 @@
         return oldsetter.call(this, v);
       });
     };
+    Item.prototype.ready = function() {
+      return null;
+    };
     Item.prototype.defineGetter = function(propName) {
       return this.__defineGetter__(propName, function() {
         return qmlEngine.evaluate(this["_" + propName], this);
@@ -589,6 +592,7 @@
         this.appendSetter(prop, setter);
         this[prop] = this[prop];
       }
+      this.ready;
     }
     Item.prototype.defineDynamicSetter = function(thisid, propname) {
       return this.__defineSetter__(propname, function(v) {
@@ -759,6 +763,9 @@
     function MouseArea() {
       MouseArea.__super__.constructor.apply(this, arguments);
     }
+    MouseArea.prototype.ready = function() {
+      return console.log(this.onClicked.toString());
+    };
     MouseArea.prototype.onClicked = null;
     MouseArea.prototype.type = 'MouseArea';
     return MouseArea;
