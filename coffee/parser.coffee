@@ -9,6 +9,7 @@ class QMLParser
     #,
       re: /on(\w+)\s*:\s*\{/ #event handler (multiline)
       repl: 'on$1: function(){'
+      do: ()-> @inevent = true
     ,
       re: /on(\w+)\s*:\s*(\w[^\{]+)/ #event handler (oneline)
       repl: "on$1: function()\{$2\}"
@@ -18,6 +19,10 @@ class QMLParser
     ,
       re: /(})/ #close bracket
       repl: '$1,'
+      #do: ()->@closedbr++
+    #,
+    #  re: /({})/ #close bracket
+    #  do: ()->@openedbr++
     ,
       re: /([\w\.]+)\:\s*(\d+)$/ #number property (width: 100)
       repl: '"$1": $2,'
@@ -189,7 +194,10 @@ class QMLView
     domobj = atom.dom.create('div').appendTo( parent );
     domobj.addClass 'MouseArea'
     domobj.bind click: (e)->
-      el.onClicked()
+      `with(el){
+      el.onClicked();
+      } `
+      return false
     return domobj
   #getCSSMetric: (domobj, cssname)->
   #  value = domobj.first[ cssname ]
@@ -378,6 +386,8 @@ class Item
 
   defineSetter: (propName) ->
     @__defineSetter__ propName, (value)->
+      if typeof value == "string"
+        value = "\"#{value}\""
       this['_'+propName] = value
       qmlEngine.updateDepencities(@id, propName, value)
 

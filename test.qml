@@ -42,10 +42,12 @@ Rectangle {
                  anchors.fill: parent
                  onClicked: {
                     r2.x+=20
-                    if(canvas.color == "blue")
-                        canvas.color = "'green'"
+                    with(this){
+                    if(parent.color == "blue")
+                        parent.color = "green"
                     else
-                        canvas.color = "'blue'"
+                        parent.color = "blue"
+                        }
                  }
               }
      }

@@ -285,7 +285,9 @@
       domobj.addClass('MouseArea');
       domobj.bind({
         click: function(e) {
-          return el.onClicked();
+          with(el){
+      eval(el.onClicked.toString()+"()");
+      } ;          return false;
         }
       });
       return domobj;
@@ -537,6 +539,9 @@
     };
     Item.prototype.defineSetter = function(propName) {
       return this.__defineSetter__(propName, function(value) {
+        if (typeof value === "string") {
+          value = "\"" + value + "\"";
+        }
         this['_' + propName] = value;
         return qmlEngine.updateDepencities(this.id, propName, value);
       });
