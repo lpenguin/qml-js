@@ -218,6 +218,7 @@ class QMLView
       td = atom.dom.create 'td'
       td.appendTo tr
       child.appendTo td
+      child.css position: 'static'
     return domobj
   #getCSSMetric: (domobj, cssname)->
   #  value = domobj.first[ cssname ]
@@ -563,6 +564,8 @@ class MouseArea extends Item
 
 class Row extends Item
   type: 'Row'
+  width: null
+  height: null
 #item = qmlEngine.parseQML str
 #canvas = qmlEngine.findItem('canvas')
 

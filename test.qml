@@ -30,17 +30,22 @@ Rectangle {
         }
      }
      Row {
+        //anchors.bottom: parent
+        y:200
         Rectangle {
             width: 100
             height: 100
+            color: "red"
         }
         Rectangle {
             width: 100
             height: 100
+            color: "red"
         }
         Rectangle {
             width: 100
             height: 100
+            color: "red"
         }
      }
      Rectangle {

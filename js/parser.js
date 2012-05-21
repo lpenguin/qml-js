@@ -315,6 +315,9 @@
         td = atom.dom.create('td');
         td.appendTo(tr);
         child.appendTo(td);
+        child.css({
+          position: 'static'
+        });
       }
       return domobj;
     };
@@ -863,6 +866,14 @@
     }
 
     Row.prototype.type = 'Row';
+
+    Row.prototype.width = null;
+
+    Row.prototype.height = null;
+
+    Row.prototype.x = null;
+
+    Row.prototype.y = null;
 
     return Row;
 
