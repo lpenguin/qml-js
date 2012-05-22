@@ -33,24 +33,24 @@ class QMLView
       child.appendTo dom
           
     return dom
-  appendChildrenToRow: (row, children)->
-    tr = atom.dom.create 'tr'
-    tr.appendTo row
-    for child in children
-      td = atom.dom.create 'td'
-      td.appendTo tr
-      child.appendTo td
-      #child.css position: 'static'
+#  appendChildrenToRow: (row, children)->
+#    tr = atom.dom.create 'tr'
+#    tr.appendTo row
+#    for child in children
+#      td = atom.dom.create 'td'
+#      td.appendTo tr
+#      child.appendTo td
+#      #child.css position: 'static'
 
-  appendChildrenToColumn: (column, children)->
-
-    #  tr = atom.dom.create 'tr'
-     # tr.appendTo column
-     # td = atom.dom.create 'td'
-    #  td.appendTo tr
-    for child in children
-      child.appendTo column
-      #child.css position: 'static'
+#  appendChildrenToColumn: (column, children)->
+#
+#    #  tr = atom.dom.create 'tr'
+#     # tr.appendTo column
+#     # td = atom.dom.create 'td'
+#    #  td.appendTo tr
+#    for child in children
+#      child.appendTo column
+#      #child.css position: 'static'
 
   updateDepencities: (id, property, newvalue)->
     el = qmlEngine.findItem(id)
@@ -86,11 +86,11 @@ class QMLView
       return false
     return domobj
   createRow: (el, parent)->
-    domobj = atom.dom.create('table')#.appendTo( parent );
+    domobj = atom.dom.create('div')#.appendTo( parent );
     domobj.addClass 'Row'
     return domobj
   createColumn: (el, parent)->
-    domobj = atom.dom.create('table')#.appendTo( parent );
+    domobj = atom.dom.create('div')#.appendTo( parent );
     domobj.addClass 'Column'
     return domobj
   createRepeater: (el, parent)->
@@ -123,14 +123,14 @@ class QMLView
     text:               (domobj, v)-> domobj.html v
     'border.width':     (domobj, v)-> domobj.css 'border-width': v+'px', 'border-style': 'solid'
     'border.color':     (domobj, v)-> domobj.css 'border-color': v
-    'anchors.centerIn': (domobj, v, el)->
-      return unless el.parent
-      m = qmlView.getCSSMetrics domobj
-      parentm = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
-      domobj.css
-        left: ( parentm.width/ 2 - m.width/ 2)+"px"
-        top: (parentm.height/2 - m.height/2)+"px"
-      return domobj
+#    'anchors.centerIn': (domobj, v, el)->
+#      return unless el.parent
+#      m = qmlView.getCSSMetrics domobj
+#      parentm = qmlView.getCSSMetrics qmlView.domlinks[el.parent.id]
+#      domobj.css
+#        left: ( parentm.width/ 2 - m.width/ 2)+"px"
+#        top: (parentm.height/2 - m.height/2)+"px"
+#      return domobj
     spacing: (domobj, v, el)->
       domobj.css
         'border-spacing': v+'px'

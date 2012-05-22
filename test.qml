@@ -42,6 +42,12 @@ Rectangle {
                 width: 100
                 height: 100
                 color: "red"
+                MouseArea {
+                    anchors.fill : parent
+                    onClicked: {
+                        console.log(parent)
+                    }
+                }
             }
 
          }
@@ -50,12 +56,12 @@ Rectangle {
         id: column
         Repeater {
             model: 3
-            x: 200
-        Rectangle {
-            width:20
-            height:20
-            color: "black"
-        }
+
+            Rectangle {
+                width:20
+                height:20
+                color: "black"
+            }
         }
      }
      Rectangle {
@@ -76,7 +82,6 @@ Rectangle {
                         parent.color = "green"
                     else
                         parent.color = "blue"
-
                  }
               }
      }

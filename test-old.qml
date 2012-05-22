@@ -1,53 +1,18 @@
 import QtQuick 1.0
 
 Rectangle {
-     id: canvas
-     x:0
-     y:0
-     width: 400
-     height: 400
-     //color: "blue"
-     border.width: 1
-             Rectangle {
-                 width: 30
-                 height: 30
-                 color: "black"
-                 x:200
-                 anchors.bottom: canvas.bottom
-             }
-     Rectangle {
-        id: r1
-        width: 100
-        height: 100
-        border.width: 1
-        y: 50
+    id: main
+    width: 500
+    height: 500
+    border.width: 1
+    color: "white"
+    Rectangle {
+        id: sub
+        width: 300
+        height: 200
+        anchors.centerIn: parent
+        //anchors.bottom: main.bottom
         color: "blue"
-        Rectangle {
-            width: 30
-            height: 30
-            color: "yellow"
-            anchors.bottom: r1.bottom
-        }
-     }
-     Rectangle {
-        id: r2
-         width: 100
-         height: 100
-         border.width: 1
-         color: "green"
-         anchors.right: parent.right
-         x: 100
-         anchors.top: r1.bottom
-              MouseArea {
-                 anchors.fill: parent
-                 onClicked: console.log
-              }
-     }
-     Text {
-        text: "hello"
-        anchors.right: r1.right
-        anchors.top: r1.bottom
-        width: 100
-     }
-
- }
+        border.width: 1
+    }
+}

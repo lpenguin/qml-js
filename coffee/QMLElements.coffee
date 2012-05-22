@@ -75,11 +75,6 @@ class Item
       set: (v)->
         return unless v?
         @x = v.value(this)
-#    'anchors.right':
-#      set: (v)->
-#        return unless v?
-#        @x = v.value(this) - @width
-#      dep: ['width']
     'anchors.top':
       set: (v)->
         return unless v?
@@ -87,23 +82,32 @@ class Item
     'anchors.bottom':
       set: (v)->
         return unless v?
-        @y = v.value(this) - @height
+        @_y = v.value(this) - @height
+        qmlEngine.updateDepencities(@id, 'y', @_y)
+      deps: ['height']
     'anchors.fill':
       set: (v)->
         return unless v?
-        @y = 0
-        @x = 0
+        @_y = 0
+        @_x = 0
         @width = v.width
         @height = v.height
+        qmlEngine.updateDepencities(@id, 'x', @_x)
+        qmlEngine.updateDepencities(@id, 'y', @_y)
     'anchors.centerIn':
-       set: (v)->
-        return unless v?
-        @y = v.width/2
-        @x = v.height/2
+       set: (item)->
+        return unless item?
+        @_x = (item.width - @width)/2
+        @_y = (item.height - @height)/2
+        qmlEngine.updateDepencities(@id, 'x', @_x)
+        qmlEngine.updateDepencities(@id, 'y', @_y)
+        deps: ['width', 'height']
     'anchors.right':
       set: (v)->
         return unless v?
-        @x = v.value(this) - @width
+        @_x = v.value(this) - @width
+        qmlEngine.updateDepencities(@id, 'x', @_x)
+      deps: ['width']
 
 
   dynamic:
@@ -121,47 +125,12 @@ class Item
       get: ()->
         new AnchorLine AnchorTypes.bottom, this
       deps: ['height']
-    'anchors.right':
-      set: (v)->
-        return unless v?
-        @x = v.value(this) - @width
-      deps: ['width']
-
-  isSibling: (item)->
-    return @parent == item.parent
-  isParent: (item)->
-    return this == item.parent
-  appendSetter: (prop, setter)->
-    oldsetter = this.__lookupSetter__ prop
-    this.__defineSetter__ prop, (v)->
-      setter.call this, v
-      oldsetter.call this, v
-  ready: () ->
-    console.log "#{@id} ready"
-    return null
-  defineGetter: (propName) ->
-    @.__defineGetter__ propName, ()->
-      #trace = printStackTrace()
-      #console.log '>>>>getter<<<<'
-      #console.log trace.join '\n'
-      #if typeof this["_"+propName] == 'string'
-      return qmlEngine.evaluate this["_"+propName], this
-      #else
-      #  return this["_"+propName]
-  defineSetter: (propName) ->
-    @__defineSetter__ propName, (value)->
-      if typeof value == "string"
-        value = "\"#{value}\""
-      this['_'+propName] = value
-      qmlEngine.updateDepencities(@id, propName, value)
-
-  readOptions: (options) ->
-    for prop in @getPropertiesPublic(true)
-      this['_'+prop] = this[prop]
-      continue unless options[prop]?
-      #if typeof options[prop] == 'function'
-      #  options[prop] = '__f__'+options[prop].toString().replace(/function\s*\(\s*\)\s*\{/, '').replace(/\}$/, '')
-      this['_'+prop] = options[prop]
+#    'anchors.right':
+#      set: (anchorline)->
+#        return unless anchorline?
+#        @x = anchorline.value(this) - @width
+#
+#      deps: ['width']
 
   constructor: (parent, options) ->
     @children = []
@@ -176,33 +145,98 @@ class Item
     @id = options.id or qmlEngine.getNewId()
     qmlEngine.registerItem(this)
     qmlEngine.export(this)
-    @defineDynamicProperties()
+
     @readOptions(options)
+    @defineProperties()
+    @defineDynamicProperties()
+    @defineAnchors()
 
-#    console.log 'created: '+@type
-#    console.log ' with id: '+@id
-#    console.log ' with parent: '+@parent.id if @parent
-    @defineGettersSetters()
-    for prop, anchor of @anchors
-      @appendSetter prop, anchor.set
-      qmlEngine.defineDependency(this.id, prop, this.id, anchor.dep) if anchor.dep
-      this[prop] = this[prop]
-    #@ready()
+  isSibling: (item)->
+    return @parent == item.parent
+  isParent: (item)->
+    return this == item.parent
 
-  defineDynamicSetter: (thisid, propname)->
-    @__defineSetter__ propname, (v)->
-      qmlEngine.updateDepencities(@id, propname, v)
-      #set.call(this, v)
+  appendSetter: (prop, setter)->
+    oldsetter = this.__lookupSetter__ prop
+    this.__defineSetter__ prop, (v)->
+      setter.call this, v
+      oldsetter.call this, v
+
+  ready: () ->
+    console.log "#{@id} ready"
+    return null
+
+  readOptions: (options) ->
+    for prop in @getPropertiesPublic(true)
+      this['_'+prop] = this[prop]
+      continue unless options[prop]?
+      #if typeof options[prop] == 'function'
+      #  options[prop] = '__f__'+options[prop].toString().replace(/function\s*\(\s*\)\s*\{/, '').replace(/\}$/, '')
+      this['_'+prop] = options[prop]
+
+  defineProperties: ()->
+    for key, value of @getPropertiesObj(true)
+      #continue if @dynamic[key]?
+      if value?
+        this['_'+key] = value
+        unless typeof value == 'string'
+          for dep in @getDependencyNames(value)
+            qmlEngine.defineDependency(@id, key, dep.id, dep.key)
+        #else
+        #  this['_'+key] = '"'+(value.replace /^__f__/, '').replace( /\"/g ,"\\\"").replace(/\n/g, "\"+\n+\"")+'"'
+      @defineGetter key
+      @defineSetter key
+    return null
+
+  defineAnchors: ()->
+    for propname, anchor of @anchors
+      @appendSetter propname, anchor.set
+      if anchor.deps
+        for dep in anchor.deps
+          qmlEngine.defineDependency(this.id, propname, this.id, dep)
+      this[propname] = this[propname]
+
+    @__defineSetter__ 'x', (value)->
+      console.log 'settingx: '+value
+      return if this['anchors.right'] or this['anchors.left'] or this['anchors.centerIn']
+      if typeof value == "string"
+        value = "\"#{value}\""
+      this['_x'] = value
+      qmlEngine.updateDepencities(@id, 'x', value)
+    @__defineSetter__ 'y', (value)->
+      return if this['anchors.top'] or this['anchors.bottom']
+      if typeof value == "string"
+        value = "\"#{value}\""
+      this['_y'] = value
+      qmlEngine.updateDepencities(@id, 'y', value)
+
   defineDynamicProperties: ()->
     for own propname, prop of @dynamic
       @__defineGetter__ propname, prop.get if prop.get
-      @defineDynamicSetter @id, propname #if prop.set
-      @appendSetter propname, prop.set if prop.set
+      #if prop.set
+        #@__defineSetter__ propname, prop.set
+        #prop.set.call this, this[propname]
+      #@defineDynamicSetter @id, propname #if prop.set
+      #@appendSetter propname, prop.set if prop.set
       if prop.deps
         for dep in prop.deps
           qmlEngine.defineDependency(@id, propname, @id, dep)
-      this[propname] = this[propname] if prop.set
+      #@updateDepencities propname if prop.set
     return undefined
+
+  defineGetter: (propName) ->
+    @.__defineGetter__ propName, ()->
+      return qmlEngine.evaluate this["_"+propName], this
+
+  defineSetter: (propName) ->
+    @__defineSetter__ propName, (value)->
+      if typeof value == "string"
+        value = "\"#{value}\""
+      this['_'+propName] = value
+      qmlEngine.updateDepencities(@id, propName, value)
+
+#  updateDepencities: (propname)->
+#    qmlEngine.updateDepencities(@id, propname, this['_'+propname])
 
   getProperties: (getnullprops=false)->
     res = []
@@ -230,19 +264,7 @@ class Item
       res[key.replace /^_/,''] = value
     return res
 
-  defineGettersSetters: ()->
-    for key, value of @getPropertiesObj(true)
-      continue if @dynamic[key]?
-      if value?
-        this['_'+key] = value
-        unless typeof value == 'string'
-          for dep in @getDependencyNames(value)
-            qmlEngine.defineDependency(@id, key, dep.id, dep.key)
-        #else
-        #  this['_'+key] = '"'+(value.replace /^__f__/, '').replace( /\"/g ,"\\\"").replace(/\n/g, "\"+\n+\"")+'"'
-      @defineGetter key
-      @defineSetter key
-    return null
+
 
   getDependencyNames: (nameStr)->
     strre = new RegExp '^(\"|\').*(\"|\')$'
@@ -305,7 +327,7 @@ class Row extends Item
   width: null
   height: null
   ready: ()->
-    console.log 'column ready'
+    console.log 'row ready'
     width = 0
     maxheight = 0
     for child in @children
@@ -340,7 +362,6 @@ class Repeater extends Item
       repeatedItem = @_repeatedItem
       for i in [0..@model-1]
         newchild = qmlEngine.createObjects repeatedItem, @parent
-        newchild.x = i*newchild.width
         @parent.children.push newchild
 
     #index = @parent.children.indexOf(this)
