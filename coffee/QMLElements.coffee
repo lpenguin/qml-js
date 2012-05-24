@@ -1,4 +1,4 @@
-#TODO: anchors.centerIn
+#TODO: anchors.right => parent.right
 
 exportNames = (names...) ->
   for cl in names
@@ -6,7 +6,7 @@ exportNames = (names...) ->
   return null
 
 AnchorTypes =
-  left: 0
+  Left: 0
   right: 1
   top: 2
   bottom: 3
@@ -179,7 +179,7 @@ class Item
       #continue if @dynamic[key]?
       if value?
         this['_'+key] = value
-        unless typeof value == 'string'
+        if typeof value == 'string'
           for dep in @getDependencyNames(value)
             qmlEngine.defineDependency(@id, key, dep.id, dep.key)
         #else
@@ -195,6 +195,11 @@ class Item
         for dep in anchor.deps
           qmlEngine.defineDependency(this.id, propname, this.id, dep)
       this[propname] = this[propname]
+    for anchor in ['right', 'left', 'top', 'bottom']
+        f = (anchor)->
+          @__defineSetter__ anchor, (value)->
+            qmlEngine.updateDepencities(@id, anchor, this['_anchor.'+anchor])
+        f.call(this, anchor)
 
     @__defineSetter__ 'x', (value)->
       console.log 'settingx: '+value
@@ -213,7 +218,10 @@ class Item
   defineDynamicProperties: ()->
     for own propname, prop of @dynamic
       @__defineGetter__ propname, prop.get if prop.get
+      @__defineSetter__ propname, prop.set if prop.set
+
       #if prop.set
+      #
         #@__defineSetter__ propname, prop.set
         #prop.set.call this, this[propname]
       #@defineDynamicSetter @id, propname #if prop.set
@@ -242,10 +250,11 @@ class Item
     res = []
     skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
     for key, value of this
-      continue if not key.match(/^_/) or key in skipnames
+      continue if not key.match( /^_/ ) or key in skipnames
       continue if not value? && not getnullprops
-      res.push key.replace /^_/,''
+      res.push key.replace(/^_/, '')
     return res
+
   getPropertiesPublic: (getnullprops=false)->
     res = []
     skipnames = ['parent', 'id', 'children', 'type', 'dynamic']
@@ -257,10 +266,11 @@ class Item
 
   getPropertiesObj: (getnullprops=false)->
     res = {}
-    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
+    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic', '_constructor']
     for key, value of this
       continue if not key.match(/^_/) or key in skipnames
       continue if not value? && not getnullprops
+
       res[key.replace /^_/,''] = value
     return res
 
@@ -363,9 +373,5 @@ class Repeater extends Item
       for i in [0..@model-1]
         newchild = qmlEngine.createObjects repeatedItem, @parent
         @parent.children.push newchild
-
-    #index = @parent.children.indexOf(this)
-    #@parent.children = @parent.children.splice(index, 1)
-
 
 exportNames 'Item', 'Rectangle', 'MouseArea', 'Text', 'Row', 'Shape', 'AnchorLine', 'AnchorTypes', 'Column', 'Repeater'
