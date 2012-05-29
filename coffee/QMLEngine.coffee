@@ -12,6 +12,12 @@ class QMLParser
     #  re: /\;/g
     #  repl: "\n"
     #,
+      re: /(\w+)\s*\:\s*\[/ #array
+      repl: "$1: {"
+    ,
+      re: /\]/ #array
+      repl: "},"
+    ,
       re: /on(\w+)\s*:\s*\{/ #event handler (multiline)
       repl: 'on$1: function(){'
       do: ()-> @inevent = true

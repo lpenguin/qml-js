@@ -51,16 +51,144 @@ class AnchorLine
     return ( item.parent == @item or
        item.parent == @item.parent )
 
-class Item
+class QMLObject
   parent: null
   children: null
   id: null
+  type: 'QMLObject'
+
+  isSibling: (item)->
+    return @parent == item.parent
+  isParent: (item)->
+    return this == item.parent
+
+  appendSetter: (prop, setter)->
+    oldsetter = this.__lookupSetter__ prop
+    this.__defineSetter__ prop, (v)->
+      setter.call this, v
+      oldsetter.call this, v
+
+  ready: () ->
+    console.log "#{@id} ready"
+    return null
+
+  readOptions: (options) ->
+    for prop in @getPropertiesPublic(true)
+      this['_'+prop] = this[prop]
+      continue unless options[prop]?
+      #if typeof options[prop] == 'function'
+      #  options[prop] = '__f__'+options[prop].toString().replace(/function\s*\(\s*\)\s*\{/, '').replace(/\}$/, '')
+      this['_'+prop] = options[prop]
+
+  defineProperties: ()->
+    for key, value of @getPropertiesObj(true)
+      #continue if @dynamic[key]?
+      if value?
+        this['_'+key] = value
+        if typeof value == 'string'
+          for dep in @getDependencyNames(value)
+            qmlEngine.defineDependency(@id, key, dep.id, dep.key)
+        #else
+        #  this['_'+key] = '"'+(value.replace /^__f__/, '').replace( /\"/g ,"\\\"").replace(/\n/g, "\"+\n+\"")+'"'
+      @defineGetter key
+      @defineSetter key
+    return null
+
+  constructor: (parent, options) ->
+    console.log "QMLObject constructor"
+    @children = []
+    if not options?
+      @parent = null
+      options = parent
+    else
+      if typeof(parent) == 'object'
+        @parent = parent
+      else
+        @parent = qmlEngine.findItem parent
+    @id = options.id or qmlEngine.getNewId()
+    qmlEngine.registerItem(this)
+    qmlEngine.export(this)
+
+    @readOptions(options)
+    @defineProperties()
+  defineGetter: (propName) ->
+    @.__defineGetter__ propName, ()->
+      return qmlEngine.evaluate this["_"+propName], this
+
+  defineSetter: (propName) ->
+    @__defineSetter__ propName, (value)->
+      if typeof value == "string"
+        value = "\"#{value}\""
+      this['_'+propName] = value
+      qmlEngine.updateDepencities(@id, propName, value)
+
+#  updateDepencities: (propname)->
+#    qmlEngine.updateDepencities(@id, propname, this['_'+propname])
+
+  getProperties: (getnullprops=false)->
+    res = []
+    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
+    for key, value of this
+      continue if not key.match( /^_/ ) or key in skipnames
+      continue if not value? && not getnullprops
+      res.push key.replace(/^_/, '')
+    return res
+
+  getPropertiesPublic: (getnullprops=false)->
+    res = []
+    skipnames = ['parent', 'id', 'children', 'type', 'dynamic']
+    for key, value of this
+      continue if key.match(/^_/ )or key in skipnames
+      continue if not value? && not getnullprops
+      res.push key.replace /^_/,''
+    return res
+
+  getPropertiesObj: (getnullprops=false)->
+    res = {}
+    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic', '_constructor']
+    for key, value of this
+      continue if not key.match(/^_/) or key in skipnames
+      continue if not value? && not getnullprops
+
+      res[key.replace /^_/,''] = value
+    return res
+
+  getDependencyNames: (nameStr)->
+    strre = new RegExp '^(\"|\').*(\"|\')$'
+    digre = new RegExp '^[0-9.]+$'
+     #'^[\d\.]+$'
+
+    return [] if typeof nameStr != 'string'
+    nameStr.replace(/^\s\s*/, '').replace(/\s\s*$/, '')
+    return [] if strre.test(nameStr) or digre.test(nameStr)
+    namere = /\w+[\w\.]*\w*/g
+    m = nameStr.match(namere)
+    return [] if not m
+    res = []
+    for name in m
+      continue if digre.test name
+      if name == 'parent'
+        res.push id: 'parent', key: 'this'
+        continue
+      r=name.split('.')
+      if r.length == 1
+        id = 'this'
+        key = name
+      else
+        id = r.shift()
+        key = r.join('.')
+      res.push id: id, key: key
+    return res
+
+class Item extends QMLObject
   type: 'Item'
   x: null
   y: null
   width: 0
   height: 0
   color: "''"
+  state: ""
+  states: null
   'anchors.centerIn': null
   'anchors.fill': null
   'anchors.left': null
@@ -133,61 +261,18 @@ class Item
 #      deps: ['width']
 
   constructor: (parent, options) ->
-    @children = []
-    if not options?
-      @parent = null
-      options = parent
-    else
-      if typeof(parent) == 'object'
-        @parent = parent
-      else
-        @parent = qmlEngine.findItem parent
-    @id = options.id or qmlEngine.getNewId()
-    qmlEngine.registerItem(this)
-    qmlEngine.export(this)
-
-    @readOptions(options)
-    @defineProperties()
+    super(parent, options)
     @defineDynamicProperties()
     @defineAnchors()
+    @defineStates(optins.states)
 
-  isSibling: (item)->
-    return @parent == item.parent
-  isParent: (item)->
-    return this == item.parent
 
-  appendSetter: (prop, setter)->
-    oldsetter = this.__lookupSetter__ prop
-    this.__defineSetter__ prop, (v)->
-      setter.call this, v
-      oldsetter.call this, v
-
-  ready: () ->
-    console.log "#{@id} ready"
-    return null
-
-  readOptions: (options) ->
-    for prop in @getPropertiesPublic(true)
-      this['_'+prop] = this[prop]
-      continue unless options[prop]?
-      #if typeof options[prop] == 'function'
-      #  options[prop] = '__f__'+options[prop].toString().replace(/function\s*\(\s*\)\s*\{/, '').replace(/\}$/, '')
-      this['_'+prop] = options[prop]
-
-  defineProperties: ()->
-    for key, value of @getPropertiesObj(true)
-      #continue if @dynamic[key]?
-      if value?
-        this['_'+key] = value
-        if typeof value == 'string'
-          for dep in @getDependencyNames(value)
-            qmlEngine.defineDependency(@id, key, dep.id, dep.key)
-        #else
-        #  this['_'+key] = '"'+(value.replace /^__f__/, '').replace( /\"/g ,"\\\"").replace(/\n/g, "\"+\n+\"")+'"'
-      @defineGetter key
-      @defineSetter key
-    return null
-
+  defineStates: (states) ->
+    @states = {}
+    return unless states?
+    for state in states
+      throw Error 'State without name' unless state.name
+      @states[state.name] = state
   defineAnchors: ()->
     for propname, anchor of @anchors
       @appendSetter propname, anchor.set
@@ -231,77 +316,6 @@ class Item
           qmlEngine.defineDependency(@id, propname, @id, dep)
       #@updateDepencities propname if prop.set
     return undefined
-
-  defineGetter: (propName) ->
-    @.__defineGetter__ propName, ()->
-      return qmlEngine.evaluate this["_"+propName], this
-
-  defineSetter: (propName) ->
-    @__defineSetter__ propName, (value)->
-      if typeof value == "string"
-        value = "\"#{value}\""
-      this['_'+propName] = value
-      qmlEngine.updateDepencities(@id, propName, value)
-
-#  updateDepencities: (propname)->
-#    qmlEngine.updateDepencities(@id, propname, this['_'+propname])
-
-  getProperties: (getnullprops=false)->
-    res = []
-    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic']
-    for key, value of this
-      continue if not key.match( /^_/ ) or key in skipnames
-      continue if not value? && not getnullprops
-      res.push key.replace(/^_/, '')
-    return res
-
-  getPropertiesPublic: (getnullprops=false)->
-    res = []
-    skipnames = ['parent', 'id', 'children', 'type', 'dynamic']
-    for key, value of this
-      continue if key.match(/^_/ )or key in skipnames
-      continue if not value? && not getnullprops
-      res.push key.replace /^_/,''
-    return res
-
-  getPropertiesObj: (getnullprops=false)->
-    res = {}
-    skipnames = ['_parent', '_id', '_childs', '_type', '_dynamic', '_constructor']
-    for key, value of this
-      continue if not key.match(/^_/) or key in skipnames
-      continue if not value? && not getnullprops
-
-      res[key.replace /^_/,''] = value
-    return res
-
-
-
-  getDependencyNames: (nameStr)->
-    strre = new RegExp '^(\"|\').*(\"|\')$'
-    digre = new RegExp '^[0-9.]+$'
-     #'^[\d\.]+$'
-
-    return [] if typeof nameStr != 'string'
-    nameStr.replace(/^\s\s*/, '').replace(/\s\s*$/, '')
-    return [] if strre.test(nameStr) or digre.test(nameStr)
-    namere = /\w+[\w\.]*\w*/g
-    m = nameStr.match(namere)
-    return [] if not m
-    res = []
-    for name in m
-      continue if digre.test name
-      if name == 'parent'
-        res.push id: 'parent', key: 'this'
-        continue
-      r=name.split('.')
-      if r.length == 1
-        id = 'this'
-        key = name
-      else
-        id = r.shift()
-        key = r.join('.')
-      res.push id: id, key: key
-    return res
 
 class Shape extends Item
   #color: null
@@ -374,4 +388,12 @@ class Repeater extends Item
         newchild = qmlEngine.createObjects repeatedItem, @parent
         @parent.children.push newchild
 
-exportNames 'Item', 'Rectangle', 'MouseArea', 'Text', 'Row', 'Shape', 'AnchorLine', 'AnchorTypes', 'Column', 'Repeater'
+class State extends QMLObject
+  type: "State"
+  name: ""
+
+class PropertyChanges extends QMLObject
+  type: "State"
+  target: null
+  color: ""
+exportNames 'Item', 'Rectangle', 'MouseArea', 'Text', 'Row', 'Shape', 'AnchorLine', 'AnchorTypes', 'Column', 'Repeater', 'QMLObject'
